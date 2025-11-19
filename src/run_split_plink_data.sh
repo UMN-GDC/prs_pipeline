@@ -11,22 +11,19 @@
 # shopt -s extglob
 
 ### --- CONFIGURABLE DEFAULTS -------------------------------------------------
-# Allowed ancestry labels
-readonly VALID_ANCS=("AFR" "AMR" "EAS" "EUR" "SAS")
-
 # Defaults (can be overridden via CLI)
-anc1="AFR"                     # target ancestry
-anc2="EUR"                     # training ancestry
-nsims=10                       # number of simulations to process
+plink_file_anc1="/home/gdc/public/prs_methods/data/test/sim_1/AFR_simulation"                     # target ancestry
+plink_file_anc2="/home/gdc/public/prs_methods/data/test/sim_1/EUR_simulation"                     # training ancestry
 
-gwas_percent=0.4
-TRAIN_MODEL_PERCENT=0.3
-VALID_MODEL_PERCENT=0.1
-TEST_MODEL_PERCENT=0.2
+gwas_percent=40
+train_percent=30
+valid_percent=10
+test_percent=20
 rand_seed=42
+no_plink=0
 path_to_repo=/home/gdc/public/prs_methods/scripts/prs_pipeline # place the code is located
-path_R_packages=/home/gdc/public/Ref/R
-export R_LIBS_USER="$path_R_packages"
+# path_R_packages=/home/gdc/public/Ref/R
+# export R_LIBS_USER="$path_R_packages"
 
 
 ### --- FUNCTIONS ------------------------------------------------------------
@@ -35,21 +32,22 @@ usage() {
 Usage: $0 [options]
 
 Options:
-  -1 <anc1>            target ancestry (default: ${anc1})
-  -2 <anc2>            training ancestry (default: ${anc2})
-  -n <nsims>           number of simulations to process (default: ${nsims})
-  -s <0|1>             skip simulation generation: 1=yes, 0=no (default: ${skip_generate_sims})
-  -b <base_location>   base output directory (default auto: simulation_\${anc1}_target_\${anc2}_training under public path)
-  -r <repo_path>       path to TLPRS_tools repo (default: ${path_to_repo})
-  -o <tmp_output>      temporary output location for QC steps (default: ${path_to_output_to})
-  -R <RHO>             SNP effect covariance (0-1) (default: 0.8)
-  -m <MAF>             maf (0-1) (default: 0.05)
-  -H <HERIT>           herit (0-1) (default: 0.4)
-  -S <seed>            Randomization seed (default:42)
-  -h                   show this help and exit
+  -1 <plink_file_anc1>      Full path to target ancestry plink files (default: ${plink_file_anc1})
+  -2 <plink_file_anc2>      Full path to training ancestry plink files  (default: ${plink_file_anc2})
+  -r <repo_path>            Path to prs_pipeline repo (default: ${path_to_repo})
+  -g <gwas_percent>         Percent of data for GWAS (default: 40)
+  -t <train_percent>        Percent of data for training (default: 30)
+  -T <testing_percent>      Percent of data for testing (default: 20)
+  -v <validation_percent>   Percent of data for validation (default: 10)
+  -S <seed>                 Randomization seed (default:42)
+  -N <no_plink>             Include flag to skip generating plink separated files (default: set to generate split plink files). 
+  -h                        show this help and exit
 
 Example:
-  $0 -1 AFR -2 EUR -n 5 -b /path/to/output -s 0
+  bash prs_pipeline/src/run_split_plink_data.sh -1 /home/gdc/public/prs_methods/data/test/sim_1/AFR_simulation -2 /home/gdc/public/prs_methods/data/test/sim_1/EUR_simulation -g 40 -t 30 -T 20 -v 10 -S 40
+
+  Using default settings but skipping generation of separated files
+    bash prs_pipeline/src/run_split_plink_data.sh -N
 EOF
   exit 1
 }
@@ -59,25 +57,20 @@ log() {
   echo "[$(date '+%F %T')] $msg"
 }
 
-assert_file_exists() {
-  local f="$1"
-  if [[ ! -e "$f" ]]; then
-    echo "Required file not found: $f" >&2
-    exit 3
-  fi
-}
+
 
 ### --- PARSE ARGS ------------------------------------------------------------
-while getopts ":1:2:r:g:t:T:v:S:h" opt; do
+while getopts ":1:2:r:g:t:T:v:S:Nh" opt; do
   case "$opt" in
     1) plink_file_anc1="$OPTARG" ;;
     2) plink_file_anc2="$OPTARG" ;;
     r) path_to_repo="$OPTARG" ;;
     g) gwas_percent="$OPTARG" ;;
-    t) TRAIN_MODEL_PERCENT="$OPTARG" ;;
-    T) TEST_MODEL_PERCENT="$OPTARG" ;;
-    v) VALID_MODEL_PERCENT="$OPTARG" ;;
+    t) train_percent="$OPTARG" ;;
+    T) test_percent="$OPTARG" ;;
+    v) valid_percent="$OPTARG" ;;
     S) rand_seed="$OPTARG" ;;
+    N) no_plink=1 ;;
     h) usage ;;
     *) usage ;;
   esac
@@ -91,32 +84,52 @@ module load plink/2.00-alpha-091019
 
 
 # Split phenotype / plink files
-log "Splitting target/training data for run ${counter}"
-
 source /home/gdc/public/envs/load_miniconda3.sh
+log "Splitting plink data for "$plink_file_anc1""
+if [ "${no_plink}" -eq 1 ]; then
+  python "${path_to_repo}/src/split_plink_samples.py" "${plink_file_anc1}" \
+    --gwas "${gwas_percent}" \
+    --train "${train_percent}" \
+    --val "${valid_percent}" \
+    --test "${test_percent}" \
+    --seed ${rand_seed} \
+    --no_plink
 
-echo "Splitting ancestry 1 data"
-python "${path_to_repo}/src/split_plink_samples.py" "${plink_file_anc1}" \
-  --gwas "${gwas_percent}" \
-  --train "${TRAIN_MODEL_PERCENT}" \
-  --val "${VALID_MODEL_PERCENT}" \
-  --test "${TEST_MODEL_PERCENT}" \
-  --seed ${rand_seed}
+  log "Splitting plink data for "$plink_file_anc2""
 
-echo "Splitting ancestry 2 data"
-python "${path_to_repo}/src/split_plink_samples.py" "${plink_file_anc2}" \
-  --gwas "${gwas_percent}" \
-  --train "${TRAIN_MODEL_PERCENT}" \
-  --val "${VALID_MODEL_PERCENT}" \
-  --test "${TEST_MODEL_PERCENT}" \
-  --seed ${rand_seed}
+  python "${path_to_repo}/src/split_plink_samples.py" "${plink_file_anc2}" \
+    --gwas "${gwas_percent}" \
+    --train "${train_percent}" \
+    --val "${valid_percent}" \
+    --test "${test_percent}" \
+    --seed ${rand_seed} \
+    --no_plink
+else
+
+  python "${path_to_repo}/src/split_plink_samples.py" "${plink_file_anc1}" \
+    --gwas "${gwas_percent}" \
+    --train "${train_percent}" \
+    --val "${valid_percent}" \
+    --test "${test_percent}" \
+    --seed ${rand_seed}
+
+  log "Splitting plink data for "$plink_file_anc2""
+
+  python "${path_to_repo}/src/split_plink_samples.py" "${plink_file_anc2}" \
+    --gwas "${gwas_percent}" \
+    --train "${train_percent}" \
+    --val "${valid_percent}" \
+    --test "${test_percent}" \
+    --seed ${rand_seed}
+fi
 
 conda deactivate
 conda deactivate
 
 
 echo "Finished generating inputs with the following parameters 
-gwas %: ${gwas_percent}, 
-training model %: ${TRAIN_MODEL_PERCENT},
-validation model %: ${VALID_MODEL_PERCENT}, 
+gwas: ${gwas_percent}%, 
+training model: ${train_percent}%,
+validation model: ${valid_percent}%, 
+testing model: ${test_percent}% "
 

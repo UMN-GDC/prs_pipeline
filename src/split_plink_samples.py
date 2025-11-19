@@ -35,7 +35,8 @@ def main():
         sys.exit(1)
 
     # Load and shuffle .fam file
-    df = pd.read_csv(fam_path, delim_whitespace=True, header=None)
+    #df = pd.read_csv(fam_path, delim_whitespace=True, header=None)
+    df = pd.read_csv(fam_path, sep='\s+', header=None)
     df = df[[0, 1]].sample(frac=1.0, random_state=args.seed).reset_index(drop=True)
 
     # Compute sample sizes
