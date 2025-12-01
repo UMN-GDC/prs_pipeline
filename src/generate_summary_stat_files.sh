@@ -12,10 +12,11 @@
 
 # ========== CONFIGURATION ==========
 base_location="/home/gdc/public/prs_methods/data/test/sim_1"
+base_location="/home/gdc/public/prs_methods/data/test/sim_2"
 anc1_gwas_input="AFR_simulation_gwas"
 anc2_gwas_input="EUR_simulation_gwas"
 
-base_location="/home/gdc/public/prs_methods/outputs/simulation_AFR_target_EUR_training_simPheno_test/sim_1"
+#base_location="/home/gdc/public/prs_methods/outputs/simulation_AFR_target_EUR_training_simPheno_test/sim_1"
 
 path_to_repo="/home/gdc/public/prs_methods/scripts/prs_pipeline"
 
@@ -93,7 +94,7 @@ done
 # ========== STEP 5: Create target summary stats files ==========
 log "STEP 5: Creating target summary stats files via R"
 
-Rscript "${path_to_repo}/src/creating_target_sumstats_files.R" \
+Rscript "${path_to_repo}/src/create_sumstats_files.R" \
   "${base_location}" \
   "target_sumstats_filtered_clean.txt" \
   "${base_location}/${anc1_gwas_input}.bim" \
@@ -101,18 +102,18 @@ Rscript "${path_to_repo}/src/creating_target_sumstats_files.R" \
   "training_sumstats_filtered_clean.txt" \
   "${base_location}/${anc2_gwas_input}.bim" \
   "training_sumstats.txt" \
-  > "${base_location}/creating_target_sumstats_files_for_TLPRS.log" 2>&1
+  > "${base_location}/create_sumstats_files.log" 2>&1
 
 
-Rscript "${path_to_repo}/src/creating_target_sumstats_files_multiple.R" \
-  "${base_location}" \
-  "target_sumstats_filtered_clean.txt" \
-  "${base_location}/${anc1_gwas_input}.bim" \
-  "target_sumstats_prosper.txt" \
-  "training_sumstats_filtered_clean.txt" \
-  "${base_location}/${anc2_gwas_input}.bim" \
-  "training_sumstats_prosper.txt" \
-  > "${base_location}/creating_target_sumstats_files.log" 2>&1
+#Rscript "${path_to_repo}/src/creating_target_sumstats_files_multiple.R" \
+#  "${base_location}" \
+#  "target_sumstats_filtered_clean.txt" \
+#  "${base_location}/${anc1_gwas_input}.bim" \
+#  "target_sumstats_prosper.txt" \
+#  "training_sumstats_filtered_clean.txt" \
+#  "${base_location}/${anc2_gwas_input}.bim" \
+#  "training_sumstats_prosper.txt" \
+#  > "${base_location}/creating_target_sumstats_files.log" 2>&1
 
 
 log "Finished generating batch of summary statistic files"
