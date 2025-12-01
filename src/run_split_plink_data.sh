@@ -12,8 +12,8 @@
 
 ### --- CONFIGURABLE DEFAULTS -------------------------------------------------
 # Defaults (can be overridden via CLI)
-plink_file_anc1="/home/gdc/public/prs_methods/data/test/sim_1/AFR_simulation"                     # target ancestry
-plink_file_anc2="/home/gdc/public/prs_methods/data/test/sim_1/EUR_simulation"                     # training ancestry
+plink_file_anc1="/home/gdc/public/prs_methods/data/test/sim_2/AFR_simulation"                     # target ancestry
+plink_file_anc2="/home/gdc/public/prs_methods/data/test/sim_2/EUR_simulation"                     # training ancestry
 
 gwas_percent=40
 train_percent=30
@@ -82,6 +82,9 @@ done
 module load plink
 module load plink/2.00-alpha-091019
 
+base_location=$(dirname "$plink_file_anc1")
+mkdir -p "${base_location}/samples_training"
+mkdir -p "${base_location}/samples_testing"
 
 # Split phenotype / plink files
 source /home/gdc/public/envs/load_miniconda3.sh
@@ -95,6 +98,7 @@ if [ "${no_plink}" -eq 1 ]; then
     --seed ${rand_seed} \
     --no_plink
 
+  mv "${base_location}"/*samples.txt "${base_location}/samples_training"
   log "Splitting plink data for "$plink_file_anc2""
 
   python "${path_to_repo}/src/split_plink_samples.py" "${plink_file_anc2}" \
@@ -104,6 +108,7 @@ if [ "${no_plink}" -eq 1 ]; then
     --test "${test_percent}" \
     --seed ${rand_seed} \
     --no_plink
+  mv "${base_location}"/*samples.txt "${base_location}/samples_testing"
 else
 
   python "${path_to_repo}/src/split_plink_samples.py" "${plink_file_anc1}" \
@@ -112,6 +117,7 @@ else
     --val "${valid_percent}" \
     --test "${test_percent}" \
     --seed ${rand_seed}
+  mv "${base_location}"/*samples.txt "${base_location}/samples_training"
 
   log "Splitting plink data for "$plink_file_anc2""
 
@@ -121,6 +127,7 @@ else
     --val "${valid_percent}" \
     --test "${test_percent}" \
     --seed ${rand_seed}
+  mv "${base_location}"/*samples.txt "${base_location}/samples_testing"
 fi
 
 conda deactivate
