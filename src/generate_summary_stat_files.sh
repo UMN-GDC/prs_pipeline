@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-#SBATCH --time=24:00:00
-#SBATCH --ntasks=8
-#SBATCH --mem=50g
-#SBATCH --tmp=50g
+#SBATCH --time=12:00:00
+#SBATCH --ntasks=16
+#SBATCH --mem=100g
+#SBATCH --tmp=100g
 #SBATCH -p agsmall
 #SBATCH -o generate_summary_stats.out
 #SBATCH --job-name prs_generate_summary_stats
@@ -10,16 +10,15 @@
 # set -euo pipefail
 # IFS=$'\n\t'
 
-# ========== CONFIGURATION ==========
-base_location="/home/gdc/public/prs_methods/data/test/sim_1"
-base_location="/home/gdc/public/prs_methods/data/test/sim_2"
+# ========== DEFAULT CONFIGURATION ==========
+base_location="/projects/standard/gdc/public/prs_methods/data/test/sim_1"
+#base_location="/projects/standard/gdc/public/prs_methods/data/test/sim_2"
 anc1_gwas_input="AFR_simulation_gwas"
 anc2_gwas_input="EUR_simulation_gwas"
+seed=42
+thin=.01
 
-#base_location="/home/gdc/public/prs_methods/outputs/simulation_AFR_target_EUR_training_simPheno_test/sim_1"
-
-path_to_repo="/home/gdc/public/prs_methods/scripts/prs_pipeline"
-
+path_to_repo="/projects/standard/gdc/public/prs_methods/scripts/prs_pipeline"
 log_file="${base_location}/gen_sum_stats.log"
 
 if [ -f ${log_file} ]; then
@@ -28,68 +27,119 @@ fi
 
 mkdir -p "${base_location}"
 
-log() {
-  echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "${log_file}"
+### --- FUNCTIONS AND ARGPARSER -----------------------------------------------------------------
+usage() {
+  cat <<EOF
+Usage: $0 [options]
+
+Options:
+  -1 <anc1_gwas_input>      Target ancestry plink files gwas split (default: ${anc1_gwas_input})
+  -2 <anc2_gwas_input>      Training ancestry plink files gwas split  (default: ${anc2_gwas_input})
+  -r <repo_path>            Path to prs_pipeline repo (default: ${path_to_repo})
+  -b <base_location>        Full path to workspace (default: ${base_location})
+  -S <seed>                 Randomization seed (default:42)
+  -t <thin>                 SNP thin percent (default:0.01)
+  -h                        show this help and exit
+
+Example:
+  bash prs_pipeline/src/generate_summary_stat_files.sh -1 AFR_simulation_gwas -2 EUR_simulation_gwas -b /projects/standard/gdc/public/prs_methods/data/test/sim_1
+
+  Using default settings but changing base_location of data
+    bash prs_pipeline/src/generate_summary_stat_files.sh -b /projects/standard/gdc/public/prs_methods/data/test/sim_2
+EOF
+  exit 1
 }
+
+log() {
+  local msg="$1"
+  echo "[$(date '+%F %T')] $msg"
+}
+
+### --- PARSE ARGS ------------------------------------------------------------
+while getopts ":1:2:r:b:S:h" opt; do
+  case "$opt" in
+    1) anc1_gwas_input="$OPTARG" ;;
+    2) anc2_gwas_input="$OPTARG" ;;
+    r) path_to_repo="$OPTARG" ;;
+    b) base_location="$OPTARG" ;;
+    S) seed="$OPTARG" ;;
+    t) thin="$OPTARG" ;;
+    h) usage ;;
+    *) usage ;;
+  esac
+done
 
 # ========== Modules ==========
 module load R/4.4.0-openblas-rocky8
 module load plink
 module load plink/2.00-alpha-091019
 
+# ===============================
+# FAST GWAS PIPELINE (optimized)
+# ===============================
 
-# ========== STEP 1: Generate .qassoc and summary stats ==========
-log "STEP 1: Generating association statistics for provided gwas_split data"
-
-plink --bfile "${base_location}/${anc1_gwas_input}" --assoc --allow-no-sex \
-  --out "${base_location}/ancestry_target" \
-  &>> "${log_file}"
-
-plink --bfile "${base_location}/${anc2_gwas_input}" --assoc --allow-no-sex \
-  --out "${base_location}/ancestry_training" \
-  &>> "${log_file}"
-
-
-# ========== STEP 2: PCA ==========
-log "STEP 2: Performing PCA for ${anc1_gwas_input} and ${anc2_gwas_input}"
-
-plink --bfile "${base_location}/${anc1_gwas_input}" --pca --allow-no-sex \
-  --out "${base_location}/${anc1_gwas_input}_pca" &>> "${log_file}"
-
-plink --bfile "${base_location}/${anc2_gwas_input}" --pca --allow-no-sex \
-  --out "${base_location}/${anc2_gwas_input}_pca" &>> "${log_file}"
-
-# ========== STEP 3: GWAS summary stats corrected ==========
-log "STEP 3: Running GWAS summary stats with PCA covariates"
+log "STEP 1: Thin dataset for PCA"
 
 plink --bfile "${base_location}/${anc1_gwas_input}" \
-  --covar "${base_location}/${anc1_gwas_input}_pca.eigenvec" \
-  --linear --allow-no-sex \
-  --out "${base_location}/target_sumstats_corrected" &>> "${log_file}"
+      --thin ${thin} \
+      --make-bed \
+      --threads 16 \
+      --seed "${seed}" \
+      --out "${base_location}/${anc1_gwas_input}_thin" &>> "${log_file}"
 
 plink --bfile "${base_location}/${anc2_gwas_input}" \
-  --covar "${base_location}/${anc2_gwas_input}_pca.eigenvec" \
-  --linear --allow-no-sex \
-  --out "${base_location}/training_sumstats_corrected" &>> "${log_file}"
+      --thin ${thin} \
+      --make-bed \
+      --seed "${seed}" \
+      --threads 16 \
+      --out "${base_location}/${anc2_gwas_input}_thin" &>> "${log_file}"
 
-# ========== STEP 4: Filter and format summary stats ==========
-log "STEP 4: Filtering and formatting summary stats"
+# ========== PCA ==========
+log "STEP 2: PCA on thinned sets"
+
+plink --bfile "${base_location}/${anc1_gwas_input}_thin" \
+      --pca 10 \
+      --threads 16 \
+      --out "${base_location}/${anc1_gwas_input}_pca" &>> "${log_file}"
+
+plink --bfile "${base_location}/${anc2_gwas_input}_thin" \
+      --pca 10 \
+      --threads 16 \
+      --out "${base_location}/${anc2_gwas_input}_pca" &>> "${log_file}"
+
+# ========== Linear GWAS w/ PCA ==========
+log "STEP 3: Running GWAS with PCA covariates"
+
+plink --bfile "${base_location}/${anc1_gwas_input}" \
+      --covar "${base_location}/${anc1_gwas_input}_pca.eigenvec" \
+      --linear \
+      --allow-no-sex \
+      --threads 16 \
+      --out "${base_location}/target_sumstats_corrected" \
+      &>> "${log_file}"
+
+plink --bfile "${base_location}/${anc2_gwas_input}" \
+      --covar "${base_location}/${anc2_gwas_input}_pca.eigenvec" \
+      --linear \
+      --allow-no-sex \
+      --threads 16 \
+      --out "${base_location}/training_sumstats_corrected" \
+      &>> "${log_file}"
+
+# ========== Summary stat filtering (1 awk pass) ==========
+log "STEP 4: Filtering summary stats"
 
 for type in training target; do
   input="${base_location}/${type}_sumstats_corrected.assoc.linear"
-  filtered="${base_location}/${type}_sumstats_filtered.txt"
-  clean="${base_location}/${type}_sumstats_filtered_clean.txt"
+  output="${base_location}/${type}_sumstats_final.txt"
 
-  awk 'BEGIN {OFS="\t"}
-    NR==1 { print "SNP","CHR","A1","BETA","SE","P","n_eff"; next }
-    $5=="ADD" {
-      se = ($8==0 || $8=="NA") ? "NA" : $7/$8
-      print $2,$1,$4,$7,se,$9,$6
-    }' "${input}" > "${filtered}"
-
-  awk '$5 != "NA"' "${filtered}" > "${clean}"
+  awk '
+    BEGIN {OFS="\t"; print "SNP","CHR","A1","BETA","SE","P","n_eff"}
+    NR>1 && $5=="ADD" && $8!=0 && $8!="NA" {
+      print $2, $1, $4, $7, $7/$8, $9, $6
+    }
+  ' "$input" > "$output"
 done
-
 
 # ========== STEP 5: Create target summary stats files ==========
 log "STEP 5: Creating target summary stats files via R"
