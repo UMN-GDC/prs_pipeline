@@ -3,7 +3,7 @@
 # -------------------------------------------------------------------------
 # Setup
 # -------------------------------------------------------------------------
-.libPaths("/home/gdc/public/Ref/R")
+.libPaths("/projects/standard/gdc/public/Ref/R")
 suppressMessages(library(readr))
 suppressMessages(library(tidyverse))
 
