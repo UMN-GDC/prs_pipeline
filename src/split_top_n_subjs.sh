@@ -2,8 +2,9 @@
 
 ### --- CONFIGURABLE DEFAULTS -------------------------------------------------
 # Defaults (can be overridden via CLI)
-plink_file_anc1="/projects/standard/gdc/public/prs_methods/data/test/sim_1/AFR_simulation"                     # target ancestry
-plink_file_anc2="/projects/standard/gdc/public/prs_methods/data/test/sim_1/EUR_simulation"                     # training ancestry
+plink_file_anc1="/projects/standard/gdc/public/prs_methods/data/test/sim_2/AFR_simulation"                     # target ancestry
+plink_file_anc2="/projects/standard/gdc/public/prs_methods/data/test/sim_2/EUR_simulation"                     # training ancestry
+#/projects/standard/gdc/public/prs_methods/data/simulated_1000G/
 path_to_repo=/projects/standard/gdc/public/prs_methods/scripts/prs_pipeline # place the code is located
 
 gwas_number=120000
@@ -15,7 +16,7 @@ Options:
   -1 <plink_file_anc1>      Full path to target ancestry plink files (default: ${plink_file_anc1})
   -2 <plink_file_anc2>      Full path to training ancestry plink files  (default: ${plink_file_anc2})
   -r <repo_path>            Path to prs_pipeline repo (default: ${path_to_repo})
-  -g <gwas_number>         Percent of data for GWAS (default: 40)
+  -g <gwas_number>         Percent of data for GWAS (default: 120000)
   -h                        show this help and exit
 
 Example:
@@ -23,6 +24,9 @@ Example:
 
   Using default settings but changing number of samples being considered for the gwas section
     bash prs_pipeline/src/split_top_n_subjs.sh -g 15000
+  
+  For a smaller dataset
+    bash prs_pipeline/src/split_top_n_subjs.sh -1 /projects/standard/gdc/public/prs_methods/data/simulated_1000G/AFR_simulation -2 /projects/standard/gdc/public/prs_methods/data/simulated_1000G/EUR_simulation -g 300
 EOF
   exit 1
 }
