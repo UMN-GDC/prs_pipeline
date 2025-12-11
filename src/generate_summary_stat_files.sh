@@ -16,16 +16,9 @@ base_location="/projects/standard/gdc/public/prs_methods/data/test/sim_1"
 anc1_gwas_input="AFR_simulation_gwas"
 anc2_gwas_input="EUR_simulation_gwas"
 seed=42
-thin=.01
+thin=.05
 
 path_to_repo="/projects/standard/gdc/public/prs_methods/scripts/prs_pipeline"
-log_file="${base_location}/gen_sum_stats.log"
-
-if [ -f ${log_file} ]; then
-  rm ${log_file}
-fi
-
-mkdir -p "${base_location}"
 
 ### --- FUNCTIONS AND ARGPARSER -----------------------------------------------------------------
 usage() {
@@ -38,7 +31,7 @@ Options:
   -r <repo_path>            Path to prs_pipeline repo (default: ${path_to_repo})
   -b <base_location>        Full path to workspace (default: ${base_location})
   -S <seed>                 Randomization seed (default:42)
-  -t <thin>                 SNP thin percent (default:0.01)
+  -t <thin>                 SNP thin percent (default:0.05)
   -h                        show this help and exit
 
 Example:
@@ -74,9 +67,20 @@ module load R/4.4.0-openblas-rocky8
 module load plink
 module load plink/2.00-alpha-091019
 
+REF=/projects/standard/gdc/public/Ref
+export R_LIBS_USER=${REF}/R
 # ===============================
 # FAST GWAS PIPELINE (optimized)
 # ===============================
+
+log_file="${base_location}/gen_sum_stats.log"
+
+if [ -f ${log_file} ]; then
+  rm ${log_file}
+fi
+
+mkdir -p "${base_location}"
+
 
 log "STEP 1: Thin dataset for PCA"
 
@@ -95,17 +99,28 @@ plink --bfile "${base_location}/${anc2_gwas_input}" \
       --out "${base_location}/${anc2_gwas_input}_thin" &>> "${log_file}"
 
 # ========== PCA ==========
-log "STEP 2: PCA on thinned sets"
+log "STEP 2: PCA on study sample"
+# USE the plink2 path
 
-plink --bfile "${base_location}/${anc1_gwas_input}_thin" \
-      --pca 10 \
-      --threads 16 \
+plink2 --bfile "${base_location}/${anc1_gwas_input}_thin" \
+      --pca approx 10 \
+      --threads 2 \
       --out "${base_location}/${anc1_gwas_input}_pca" &>> "${log_file}"
 
-plink --bfile "${base_location}/${anc2_gwas_input}_thin" \
-      --pca 10 \
-      --threads 16 \
+plink2 --bfile "${base_location}/${anc2_gwas_input}_thin" \
+      --pca approx 10 \
+      --threads 2 \
       --out "${base_location}/${anc2_gwas_input}_pca" &>> "${log_file}"
+
+#plink --bfile "${base_location}/${anc1_gwas_input}_thin" \
+#      --pca 10 \
+#      --threads 2 \
+#      --out "${base_location}/${anc1_gwas_input}_pca" &>> "${log_file}"
+
+#plink --bfile "${base_location}/${anc2_gwas_input}_thin" \
+#      --pca 10 \
+#      --threads 2 \
+#      --out "${base_location}/${anc2_gwas_input}_pca" &>> "${log_file}"
 
 # ========== Linear GWAS w/ PCA ==========
 log "STEP 3: Running GWAS with PCA covariates"
@@ -114,7 +129,7 @@ plink --bfile "${base_location}/${anc1_gwas_input}" \
       --covar "${base_location}/${anc1_gwas_input}_pca.eigenvec" \
       --linear \
       --allow-no-sex \
-      --threads 16 \
+      --threads 10 \
       --out "${base_location}/target_sumstats_corrected" \
       &>> "${log_file}"
 
@@ -122,7 +137,7 @@ plink --bfile "${base_location}/${anc2_gwas_input}" \
       --covar "${base_location}/${anc2_gwas_input}_pca.eigenvec" \
       --linear \
       --allow-no-sex \
-      --threads 16 \
+      --threads 10 \
       --out "${base_location}/training_sumstats_corrected" \
       &>> "${log_file}"
 
@@ -146,10 +161,10 @@ log "STEP 5: Creating target summary stats files via R"
 
 Rscript "${path_to_repo}/src/create_sumstats_files.R" \
   "${base_location}" \
-  "target_sumstats_filtered_clean.txt" \
+  "target_sumstats_final.txt" \
   "${base_location}/${anc1_gwas_input}.bim" \
   "target_sumstats.txt" \
-  "training_sumstats_filtered_clean.txt" \
+  "training_sumstats_final.txt" \
   "${base_location}/${anc2_gwas_input}.bim" \
   "training_sumstats.txt" \
   > "${base_location}/create_sumstats_files.log" 2>&1
