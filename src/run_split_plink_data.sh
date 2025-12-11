@@ -47,6 +47,9 @@ Example:
 
   Using default settings but skipping generation of separated files
     bash prs_pipeline/src/run_split_plink_data.sh -N
+  
+  Small dataset example
+    bash run_split_plink_data.sh -1 /projects/standard/gdc/public/prs_methods/data/simulated_1000G/AFR_simulation_study_sample -2 /projects/standard/gdc/public/prs_methods/data/simulated_1000G/EUR_simulation_study_sample
 EOF
   exit 1
 }
@@ -81,8 +84,8 @@ module load plink
 module load plink/2.00-alpha-091019
 
 base_location=$(dirname "$plink_file_anc1")
-mkdir -p "${base_location}/samples_training"
-mkdir -p "${base_location}/samples_testing"
+mkdir -p "${base_location}/randomization_ids_anc1"
+mkdir -p "${base_location}/randomization_ids_anc2"
 
 # Split phenotype / plink files
 source /projects/standard/gdc/public/envs/load_miniconda3.sh
@@ -95,7 +98,7 @@ if [ "${no_plink}" -eq 1 ]; then
     --seed ${rand_seed} \
     --no_plink
 
-  mv "${base_location}"/*samples.txt "${base_location}/samples_training"
+  mv "${base_location}"/*samples.txt "${base_location}/randomization_ids_anc1"
   log "Splitting plink data for "$plink_file_anc2""
 
   python "${path_to_repo}/src/split_plink_samples.py" "${plink_file_anc2}" \
@@ -104,7 +107,7 @@ if [ "${no_plink}" -eq 1 ]; then
     --test "${test_percent}" \
     --seed ${rand_seed} \
     --no_plink
-  mv "${base_location}"/*samples.txt "${base_location}/samples_testing"
+  mv "${base_location}"/*samples.txt "${base_location}/randomization_ids_anc2"
 else
 
   python "${path_to_repo}/src/split_plink_samples.py" "${plink_file_anc1}" \
@@ -112,7 +115,7 @@ else
     --val "${valid_percent}" \
     --test "${test_percent}" \
     --seed ${rand_seed}
-  mv "${base_location}"/*samples.txt "${base_location}/samples_training"
+  mv "${base_location}"/*samples.txt "${base_location}/randomization_ids_anc1"
 
   log "Splitting plink data for "$plink_file_anc2""
 
@@ -121,7 +124,7 @@ else
     --val "${valid_percent}" \
     --test "${test_percent}" \
     --seed ${rand_seed}
-  mv "${base_location}"/*samples.txt "${base_location}/samples_testing"
+  mv "${base_location}"/*samples.txt "${base_location}/randomization_ids_anc2"
 fi
 
 conda deactivate
