@@ -49,13 +49,19 @@ done
 mkdir -p "${base_location}/logs"
 mv "${base_location}"/*.log "${base_location}/logs"
 
-mkdir -p "${base_location}/summary_statistics"
-mv "${base_location}"/*.txt "${base_location}/summary_statistics"
-mv "${base_location}"/*sumstats* "${base_location}/summary_statistics"
-mv "${base_location}"/ancestry* "${base_location}/summary_statistics"
+mkdir -p "${base_location}/gwas"
+mv "${base_location}"/*.txt "${base_location}/gwas"
+mv "${base_location}"/*sumstats* "${base_location}/gwas"
+mv "${base_location}"/ancestry* "${base_location}/gwas"
+mv ${base_location}/*pca* ${base_location}/gwas
+mv ${base_location}/*assoc* ${base_location}/gwas
 
-mkdir -p "${base_location}/target_population"
-mv "${base_location}/${anc1_prefix}"* "${base_location}/target_population"
+mkdir -p "${base_location}/anc1_plink_files/archived"
+mv "${base_location}/${anc1_prefix}"* "${base_location}/anc1_plink_files"
+mv ${base_location}/randomization_ids_anc1 ${base_location}/anc1_plink_files
+mv "${base_location}/anc1_plink_files/"*gwas* "${base_location}/anc1_plink_files/archived"
 
-mkdir -p "${base_location}/training_population"
-mv "${base_location}/${anc2_prefix}"* "${base_location}/training_population"
+mkdir -p "${base_location}/anc2_plink_files/archived"
+mv "${base_location}/${anc2_prefix}"* "${base_location}/anc2_plink_files"
+mv ${base_location}/randomization_ids_anc2 ${base_location}/anc2_plink_files
+mv "${base_location}/anc2_plink_files/"*gwas* "${base_location}/anc2_plink_files/archived"
