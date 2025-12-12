@@ -11,12 +11,12 @@
 # IFS=$'\n\t'
 
 # ========== DEFAULT CONFIGURATION ==========
-base_location="/projects/standard/gdc/public/prs_methods/data/test/sim_1"
+base_location="/projects/standard/gdc/public/prs_methods/data/simulated_1000G"
 #base_location="/projects/standard/gdc/public/prs_methods/data/test/sim_2"
 anc1_gwas_input="AFR_simulation_gwas"
 anc2_gwas_input="EUR_simulation_gwas"
 seed=42
-thin=.05
+p_pca=/projects/standard/gdc/public/prs_methods/data/simulated_1000G/adjusted_1kgPCs.tsv
 
 path_to_repo="/projects/standard/gdc/public/prs_methods/scripts/prs_pipeline"
 
@@ -31,7 +31,7 @@ Options:
   -r <repo_path>            Path to prs_pipeline repo (default: ${path_to_repo})
   -b <base_location>        Full path to workspace (default: ${base_location})
   -S <seed>                 Randomization seed (default:42)
-  -t <thin>                 SNP thin percent (default:0.05)
+  -p <pca>                 Full path pca file (default: ${p_pca})
   -h                        show this help and exit
 
 Example:
@@ -49,14 +49,14 @@ log() {
 }
 
 ### --- PARSE ARGS ------------------------------------------------------------
-while getopts ":1:2:r:b:S:h" opt; do
+while getopts ":1:2:r:b:S:p:h" opt; do
   case "$opt" in
     1) anc1_gwas_input="$OPTARG" ;;
     2) anc2_gwas_input="$OPTARG" ;;
     r) path_to_repo="$OPTARG" ;;
     b) base_location="$OPTARG" ;;
     S) seed="$OPTARG" ;;
-    t) thin="$OPTARG" ;;
+    p) p_pca="$OPTARG" ;;
     h) usage ;;
     *) usage ;;
   esac
@@ -82,35 +82,35 @@ fi
 mkdir -p "${base_location}"
 
 
-log "STEP 1: Thin dataset for PCA"
+# log "STEP 1: Thin dataset for PCA"
 
-plink --bfile "${base_location}/${anc1_gwas_input}" \
-      --thin ${thin} \
-      --make-bed \
-      --threads 16 \
-      --seed "${seed}" \
-      --out "${base_location}/${anc1_gwas_input}_thin" &>> "${log_file}"
+# plink --bfile "${base_location}/${anc1_gwas_input}" \
+#       --thin ${thin} \
+#       --make-bed \
+#       --threads 16 \
+#       --seed "${seed}" \
+#       --out "${base_location}/${anc1_gwas_input}_thin" &>> "${log_file}"
 
-plink --bfile "${base_location}/${anc2_gwas_input}" \
-      --thin ${thin} \
-      --make-bed \
-      --seed "${seed}" \
-      --threads 16 \
-      --out "${base_location}/${anc2_gwas_input}_thin" &>> "${log_file}"
+# plink --bfile "${base_location}/${anc2_gwas_input}" \
+#       --thin ${thin} \
+#       --make-bed \
+#       --seed "${seed}" \
+#       --threads 16 \
+#       --out "${base_location}/${anc2_gwas_input}_thin" &>> "${log_file}"
 
 # ========== PCA ==========
-log "STEP 2: PCA on study sample"
-# USE the plink2 path
+# log "STEP 2: PCA on study sample"
+# # USE the plink2 path
 
-plink2 --bfile "${base_location}/${anc1_gwas_input}_thin" \
-      --pca approx 10 \
-      --threads 2 \
-      --out "${base_location}/${anc1_gwas_input}_pca" &>> "${log_file}"
+# plink2 --bfile "${base_location}/${anc1_gwas_input}_thin" \
+#       --pca approx 10 \
+#       --threads 2 \
+#       --out "${base_location}/${anc1_gwas_input}_pca" &>> "${log_file}"
 
-plink2 --bfile "${base_location}/${anc2_gwas_input}_thin" \
-      --pca approx 10 \
-      --threads 2 \
-      --out "${base_location}/${anc2_gwas_input}_pca" &>> "${log_file}"
+# plink2 --bfile "${base_location}/${anc2_gwas_input}_thin" \
+#       --pca approx 10 \
+#       --threads 2 \
+#       --out "${base_location}/${anc2_gwas_input}_pca" &>> "${log_file}"
 
 #plink --bfile "${base_location}/${anc1_gwas_input}_thin" \
 #      --pca 10 \
@@ -123,10 +123,10 @@ plink2 --bfile "${base_location}/${anc2_gwas_input}_thin" \
 #      --out "${base_location}/${anc2_gwas_input}_pca" &>> "${log_file}"
 
 # ========== Linear GWAS w/ PCA ==========
-log "STEP 3: Running GWAS with PCA covariates"
+log "STEP 1: Running GWAS with PCA covariates"
 
 plink --bfile "${base_location}/${anc1_gwas_input}" \
-      --covar "${base_location}/${anc1_gwas_input}_pca.eigenvec" \
+      --covar "${p_pca}" \
       --linear \
       --allow-no-sex \
       --threads 10 \
@@ -134,7 +134,7 @@ plink --bfile "${base_location}/${anc1_gwas_input}" \
       &>> "${log_file}"
 
 plink --bfile "${base_location}/${anc2_gwas_input}" \
-      --covar "${base_location}/${anc2_gwas_input}_pca.eigenvec" \
+      --covar "${p_pca}" \
       --linear \
       --allow-no-sex \
       --threads 10 \
@@ -142,7 +142,7 @@ plink --bfile "${base_location}/${anc2_gwas_input}" \
       &>> "${log_file}"
 
 # ========== Summary stat filtering (1 awk pass) ==========
-log "STEP 4: Filtering summary stats"
+log "STEP 2: Filtering summary stats"
 
 for type in training target; do
   input="${base_location}/${type}_sumstats_corrected.assoc.linear"
@@ -157,7 +157,7 @@ for type in training target; do
 done
 
 # ========== STEP 5: Create target summary stats files ==========
-log "STEP 5: Creating target summary stats files via R"
+log "STEP 3: Creating target summary stats files via R"
 
 Rscript "${path_to_repo}/src/create_sumstats_files.R" \
   "${base_location}" \
