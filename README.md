@@ -1,7 +1,7 @@
 # prs_pipeline
 A repository to aid in the use of multiple PRS models. 
 
-Assumes the inputs are plink formatted and split by ancestry.
+Assumes the inputs are plink formatted and split by ancestry. Also assumes they are providing pc calculations as an input
 
 Sequence to run scripts if using simulated data and needing to generate summary stats files
 1. split_top_n_subjs.sh
