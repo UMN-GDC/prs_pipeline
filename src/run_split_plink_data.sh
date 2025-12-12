@@ -15,7 +15,6 @@
 plink_file_anc1="/projects/standard/gdc/public/prs_methods/data/test/sim_1/AFR_simulation_study_sample"                     # target ancestry
 plink_file_anc2="/projects/standard/gdc/public/prs_methods/data/test/sim_1/EUR_simulation_study_sample"                     # training ancestry
 
-gwas_percent=0
 train_percent=50
 valid_percent=20
 test_percent=30
