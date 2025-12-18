@@ -1,4 +1,11 @@
 #!/bin/bash 
+#SBATCH --time=1:00:00
+#SBATCH --ntasks=2
+#SBATCH --mem=32g
+#SBATCH --tmp=32g
+#SBATCH -p agsmall
+#SBATCH -o split_top_n_subjs.out
+#SBATCH --job-name prs_split_top_subjs
 
 ### --- CONFIGURABLE DEFAULTS -------------------------------------------------
 # Defaults (can be overridden via CLI)
