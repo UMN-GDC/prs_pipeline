@@ -18,7 +18,8 @@ sbatch prs_pipeline/run_prepare_prs.sh -1 /scratch.global/baron063/simulations/t
 
 
 Work on diverse ancestry PRS pipeline (if they need to be combined do so in the prs method script)
-* CTSLEB - plink files are together for anc1 and anc2
+* CTSLEB - plink files are together for anc1 and anc2, They are separated for summary statitics and reference panels. 
+* PRScsx - plink files could be together or separate for anc1 and anc2. Summary statistic files should be separate.
 * prosper - plink files are together for anc1 and anc2
 * TL-PRS - plink files are separate 
 * viprs
