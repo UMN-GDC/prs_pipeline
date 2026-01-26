@@ -75,6 +75,13 @@ out_dir=$(dirname "$out_file")
 # awk 'BEGIN{OFS="\t"; print "FID","IID","SEX"} {print $1,$2,$5}' ${bfile_gwas_input}.fam > ${out_file}_covar_sex.txt
 
 #### # ---- Parse args ----
+# Check if the number of arguments is 0
+if [ "$#" -eq 0 ]; then
+    echo "Error: No config file provided."
+    echo "Usage: $0 <config>"
+    exit 1
+fi
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --c) config_file="$2"; shift 2; break ;;
