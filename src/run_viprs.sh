@@ -11,9 +11,6 @@
 source /projects/standard/gdc/public/envs/load_miniconda3.sh 
 conda activate viprs_env
 
-module load plink
-
-
 ###### FUNCTION ######
 generate_viprs_sumstats() {
 local path_plink2="$1"
@@ -57,7 +54,6 @@ load_config() {
 
 ####### Variables #######
 path_data=/projects/standard/gdc/public/prs_methods/data/simulated_1000G
-targ_ancestry=AFR
 out_path=/projects/standard/gdc/public/prs_methods/data/simulated_1000G
 path_plink2=/projects/standard/gdc/public/plink2
 bfile_gwas_input=${path_data}/anc1_plink_files/archived/AFR_simulation_gwas
