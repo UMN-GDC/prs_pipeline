@@ -5,11 +5,10 @@
 #SBATCH --mem=30GB
 #SBATCH --time=12:00:00
 #SBATCH -p msismall
-#SBATCH -o VIprs_sims.out
-#SBATCH --job-name VIprs_sims
+#SBATCH -o Viprs.out
+#SBATCH --job-name Viprs
 
 source /projects/standard/gdc/public/envs/load_miniconda3.sh 
-conda deactivate
 conda activate viprs_env
 
 module load plink
