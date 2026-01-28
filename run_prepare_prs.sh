@@ -114,13 +114,14 @@ log() {
 
 
 ### derived variables
-plink_file_anc1_study_sample="${plink_file_anc1}_study_sample"                     # target ancestry # Default name from split_top_n
-plink_file_anc2_study_sample="${plink_file_anc2}_study_sample"                     # training ancestry # Default name from split_top_n
 base_location=$(dirname ${plink_file_anc1})
 anc1_basename=$(basename ${plink_file_anc1})
 anc1_gwas_input="${anc1_basename}_gwas"
 anc2_basename=$(basename ${plink_file_anc2})
 anc2_gwas_input="${anc2_basename}_gwas"
+
+plink_file_anc1_study_sample="${Path_out}/${anc1_basename}_study_sample"                     # target ancestry # Default name from split_top_n
+plink_file_anc2_study_sample="${Path_out}/${anc2_basename}_study_sample"                     # training ancestry # Default name from split_top_n
 
 if [[ ! -f "${p_pca}" ]]; then
   echo "Error: The file ${p_pca} is incorrect"
@@ -138,9 +139,9 @@ else
 fi
 
 log "Running generate_summary_stat_files.sh"
-sbatch --wait "${path_to_repo}"/src/generate_summary_stat_files.sh -1 "${anc1_gwas_input}" -2 "${anc2_gwas_input}" -r "${path_to_repo}" -b "${base_location}" -S "${rand_seed}" -p "${p_pca}"
+sbatch --wait "${path_to_repo}"/src/generate_summary_stat_files.sh -1 "${anc1_gwas_input}" -2 "${anc2_gwas_input}" -r "${path_to_repo}" -b "${Path_out}" -S "${rand_seed}" -p "${p_pca}"
 
 log "Running restructure_output_dir.sh"
-bash "${path_to_repo}/src/restructure_output_dir.sh" -1 "${anc1_basename}" -2 "${anc2_basename}" -r "${path_to_repo}" -b "${base_location}"
+bash "${path_to_repo}/src/restructure_output_dir.sh" -1 "${anc1_basename}" -2 "${anc2_basename}" -r "${path_to_repo}" -b "${Path_out}"
 
 log "Files are ready for a PRS method"
