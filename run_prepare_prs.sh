@@ -20,6 +20,7 @@ plink_file_anc1="/projects/standard/gdc/public/prs_methods/data/test/sim_2/AFR_s
 plink_file_anc2="/projects/standard/gdc/public/prs_methods/data/test/sim_2/EUR_simulation"                     # training ancestry
 p_pca=/projects/standard/gdc/public/prs_methods/data/adjusted_1kgPCs.tsv
 path_to_repo=/projects/standard/gdc/public/prs_methods/scripts/prs_pipeline # place the code is located
+Path_out="/projects/standard/gdc/public/prs_methods/data/test/sim_2"
 
 # For customization
 gwas_number=120000
@@ -41,6 +42,7 @@ Options:
   -c <config>               Full path to a configuration file
   -1 <plink_file_anc1>      Full path to target ancestry plink files (default: ${plink_file_anc1})
   -2 <plink_file_anc2>      Full path to training ancestry plink files (default: ${plink_file_anc2})
+  -O <Path_out>             Full path you would like outputs stored at
   -P <P_pca>                Full path to the pca or covariate file for use in gwas (default: ${p_pca}).
   -R <repo_path>            Path to prs_pipeline repo (default: ${path_to_repo})
   -n <gwas_number>          Amount of data for GWAS (default: 120000)
@@ -77,11 +79,12 @@ load_config() {
 
 ### --- ArgParser for this script ----------------------
 ### --- PARSE ARGS ------------------------------------------------------------
-while getopts ":c:1:2:P:R:n:t:v:T:s:Nh" opt; do
+while getopts ":c:1:2:O:P:R:n:t:v:T:s:Nh" opt; do
   case "$opt" in
     c) config_file="$OPTARG"; break ;;
     1) plink_file_anc1="$OPTARG" ;;
     2) plink_file_anc2="$OPTARG" ;;
+    O) Path_out="$OPTARG" ;;
     P) p_pca="$OPTARG" ;;
     R) path_to_repo="$OPTARG" ;;
     n) gwas_number="$OPTARG" ;;
@@ -125,7 +128,7 @@ fi
 
 ### --- Actual script where each script gets sbatch --wait 
 log "Starting split_top_n_subjs.sh"
-sbatch --wait "${path_to_repo}"/src/split_top_n_subjs.sh -1 "${plink_file_anc1}" -2 "${plink_file_anc2}" -r "${path_to_repo}" -g "${gwas_number}"
+sbatch --wait "${path_to_repo}"/src/split_top_n_subjs.sh -1 "${plink_file_anc1}" -2 "${plink_file_anc2}" -r "${path_to_repo}" -g "${gwas_number}" -O ${Path_out}
 
 log "Running run_split_plink_data.sh"
 if [ ${skip_split_generation} -gt 0 ]; then
