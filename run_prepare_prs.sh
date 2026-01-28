@@ -27,7 +27,7 @@ train_percent=50
 valid_percent=20
 test_percent=30
 rand_seed=42
-no_plink=0 # Values greater than 0 skip generation of plink data splits
+skip_split_generation=0 # Values greater than 0 skip generation of plink data splits
 
 ### restructure
 # see anc1_basename & anc2_basename
@@ -38,6 +38,7 @@ usage() {
 Usage: $0 [options]
 
 Options:
+  -c <config>               Full path to a configuration file
   -1 <plink_file_anc1>      Full path to target ancestry plink files (default: ${plink_file_anc1})
   -2 <plink_file_anc2>      Full path to training ancestry plink files (default: ${plink_file_anc2})
   -P <P_pca>                Full path to the pca or covariate file for use in gwas (default: ${p_pca}).
@@ -47,7 +48,7 @@ Options:
   -v <valid_percent>        Validation percent as an integer to split study data into (default 20)
   -T <test_percent>         Testing percent as an integer to split study data into (default 30)
   -s <rand_seed>            Randomization seed (default 42)
-  -N <no_plink>             Include flag to skip generating plink separated files (default: set to generate split plink files). 
+  -N <skip_split_generation>             Include flag to skip generating plink separated files (default: set to generate split plink files). 
   -h                        show this help and exit
 
 Example:
@@ -60,10 +61,25 @@ EOF
   exit 1
 }
 
+load_config() {
+    local file_path="$1"
+    if [[ -f "$file_path" ]]; then
+        echo "Loading configuration from: $file_path"
+        # Source the file. Variables set in the config will override defaults.
+        # Note: 'source' is used for shell-readable KEY="VALUE" files.
+        source "$file_path"
+        return 0
+    else
+        echo "ERROR: Configuration file not found at $file_path" >&2
+        return 1
+    fi
+}
+
 ### --- ArgParser for this script ----------------------
 ### --- PARSE ARGS ------------------------------------------------------------
-while getopts ":1:2:P:R:n:t:v:T:s:Nh" opt; do
+while getopts ":c:1:2:P:R:n:t:v:T:s:Nh" opt; do
   case "$opt" in
+    c) config_file="$OPTARG"; break ;;
     1) plink_file_anc1="$OPTARG" ;;
     2) plink_file_anc2="$OPTARG" ;;
     P) p_pca="$OPTARG" ;;
@@ -73,11 +89,20 @@ while getopts ":1:2:P:R:n:t:v:T:s:Nh" opt; do
     v) valid_percent="$OPTARG" ;;
     T) test_percent="$OPTARG" ;;
     s) rand_seed="$OPTARG" ;;
-    N) no_plink=1 ;;
+    N) skip_split_generation=1 ;;
     h) usage ;;
     *) usage ;;
   esac
 done
+
+if [[ -n "$config_file" ]]; then
+    # Case 1: --config was specified. Load it, and it overrides ALL defaults.
+    load_config "$config_file" || exit 1
+else
+    # Case 2: No --config was specified.
+    # The variables set by the individual flags in step 3 are used.
+    echo "No -c file specified. Using command-line arguments and defaults."
+fi
 
 log() {
   local msg="$1"
@@ -103,7 +128,7 @@ log "Starting split_top_n_subjs.sh"
 sbatch --wait "${path_to_repo}"/src/split_top_n_subjs.sh -1 "${plink_file_anc1}" -2 "${plink_file_anc2}" -r "${path_to_repo}" -g "${gwas_number}"
 
 log "Running run_split_plink_data.sh"
-if [ ${no_plink} -gt 0 ]; then
+if [ ${skip_split_generation} -gt 0 ]; then
   sbatch --wait "${path_to_repo}"/src/run_split_plink_data.sh -1 "${plink_file_anc1_study_sample}" -2 "${plink_file_anc2_study_sample}" -r "${path_to_repo}" -t "${train_percent}" -v "${valid_percent}" -T "${test_percent}" -S "${rand_seed}" -N
 else
   sbatch --wait "${path_to_repo}"/src/run_split_plink_data.sh -1 "${plink_file_anc1_study_sample}" -2 "${plink_file_anc2_study_sample}" -r "${path_to_repo}" -t "${train_percent}" -v "${valid_percent}" -T "${test_percent}" -S "${rand_seed}"
