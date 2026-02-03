@@ -206,8 +206,13 @@ Intermediate PLINK logs and temporary files are organized into subdirectories au
 * Designed for simulated or real genotype data split by ancestry
 
 
-
-Work on diverse ancestry PRS pipeline (if they need to be combined do so in the prs method script)
-* CTSLEB - plink files are together for anc1 and anc2, They are separated for summary statitics and reference panels. 
-* prosper - plink files are together for anc1 and anc2
+## TL-PRS
 * TL-PRS - plink files are separate 
+
+## CTSLEB
+* CTSLEB - plink files are together for anc1 and anc2, They are separated for summary statitics and reference panels. 
+
+## Prosper
+* prosper - plink files are together for anc1 and anc2
+
+# Single ancestry PRS modules
