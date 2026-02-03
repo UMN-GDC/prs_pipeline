@@ -130,6 +130,82 @@ study_sample_plink_anc2="${path_data_root}/anc2_plink_files/${anc2}_simulation_s
 prs_pipeline="/projects/standard/gdc/public/prs_methods/scripts/prs_pipeline" # Full path to the cloned prs_pipeline GitHub repository
 ```
 
+## VIPRS PRS Pipeline
+
+This script runs a complete **VIPRS-based polygenic risk score (PRS) pipeline** on an HPC system using Slurm. It generates GWAS summary statistics from PLINK genotype data, fits a VIPRS model, computes PRS scores in a study sample, and evaluates predictive performance.
+
+The original toolset can be found [Variational Inference of Polygenic Risk Scores](https://shz9.github.io/viprs/).
+
+### What this script does
+
+At a high level, the script:
+
+1. Activates a Conda environment containing VIPRS
+2. Runs `plink2 --glm` by chromosome to generate GWAS summary statistics
+3. Reformats PLINK output into VIPRS-compatible summary statistics
+4. Fits a VIPRS model using LD reference panels
+5. Computes PRS scores in an independent study sample
+6. Evaluates PRS performance using phenotype and covariate files
+
+### Requirements
+
+- Slurm-enabled HPC environment
+- Bash
+- PLINK 2
+- VIPRS (`viprs_fit`, `viprs_score`, `viprs_evaluate`)
+- Conda environment containing VIPRS
+- LD reference panels for VIPRS
+
+The script loads the environment using:
+```bash
+source /projects/standard/gdc/public/envs/load_miniconda3.sh
+conda activate viprs_env
+```
+
+### Usage
+This script requires a configuration file. Run using `sbatch`:
+```bash
+sbatch run_viprs.sh --c config.sh
+```
+The configuration file is a shell-readable file that defines input paths, covariates, and output locations. All defaults in the script are overridden by values in the config file.
+
+#### Sample configuration file
+
+```bash
+path_data=/projects/standard/gdc/public/prs_methods/data/simulated_1000G
+out_path=/projects/standard/gdc/public/prs_methods/data/simulated_1000G
+path_plink2=/projects/standard/gdc/public/plink2
+bfile_gwas_input=${path_data}/anc1_plink_files/archived/AFR_simulation_gwas
+bfile_study_sample=${path_data}/anc1_plink_files/AFR_simulation_study_sample
+covariate_file_gwas=/projects/standard/gdc/public/prs_methods/data/simulated_1000G/prs_pipeline/viprs/gwas/temp/viprs_summary_stats_covar_sex_no_header.txt
+covariate_file_study_sample=${path_data}/prs_pipeline/viprs/study_sample_covar.txt
+```
+
+### Inputs
+* PLINK genotype files for GWAS (--bfile format)
+* PLINK genotype files for the study/sample cohort
+* Covariate file for GWAS (used in plink2 --glm)
+* Covariate file for PRS evaluation
+* VIPRS LD reference panels (split by chromosome) downloadable following the original documentation [Download LD Reference](https://shz9.github.io/viprs/download_ld/)
+
+### Outputs
+All outputs are written to the VIPRS output directory:
+* GWAS summary statistics (per chromosome)
+* VIPRS posterior effect size estimates:
+    * `VIPRS_EM.fit.gz`
+* Polygenic scores:
+    * `VIPRS_PGS.prs`
+* Evaluation results:
+    * `viprs_evaluate_results.eval`
+Intermediate PLINK logs and temporary files are organized into subdirectories automatically.
+
+### Notes
+* Analysis is restricted to autosomes (chromosomes 1-22)
+* GWAS summary statistics are generated using an additive genetic model
+* Phenotype files are generated automatically from provided study population plink files. It is possible to adjust this if desired.
+* Designed for simulated or real genotype data split by ancestry
+
+
 
 Work on diverse ancestry PRS pipeline (if they need to be combined do so in the prs method script)
 * CTSLEB - plink files are together for anc1 and anc2, They are separated for summary statitics and reference panels. 
