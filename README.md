@@ -18,7 +18,9 @@ sbatch prs_pipeline/run_prepare_prs.sh -1 /scratch.global/baron063/simulations/t
 ```
 
 ## PRScsx Joint Ancestry Pipeline
-This script runs a joint-ancestry PRS analysis using PRScsx, starting from GWAS summary statistics and PLINK genotype files, and ending with ancestry-specific PRS scores and R squared evaluation. It is designed to run on an HPC cluster using Slurm.
+This script runs a joint-ancestry PRS analysis using PRS-CSx, starting from GWAS summary statistics and PLINK genotype files, and ending with ancestry-specific PRS scores and R squared evaluation. It is designed to run on an HPC cluster using Slurm.
+
+The original toolset can be found here (PRScsx)[https://github.com/getian107/PRScsx]. 
 
 ### Overview
 At a high level the pipeline:
@@ -32,8 +34,9 @@ At a high level the pipeline:
 ### Requirements
 * Bash (with Slurm support)
 * Python (compatible with PRScsx)
-* PRScsx GitHub repository cloned (LD matrices downloaded)
-* Plink2
+* PRScsx GitHub repository cloned (PRScsx)[https://github.com/getian107/PRScsx] 
+* PRScsx LD reference panels downloaded (PRScsx LD panels)[https://github.com/getian107/PRScsx/blob/master/README.md]
+* Plink2 (plink2.0 home)[https://www.cog-genomics.org/plink/2.0/]
 * R (for PRS evaluation)
 * Conda environment loaded via:
 ```bash
