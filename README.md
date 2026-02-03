@@ -17,10 +17,10 @@ Sample call with a smaller data set
 sbatch prs_pipeline/run_prepare_prs.sh -1 /scratch.global/baron063/simulations/temp/AFR_simulation -2 /scratch.global/baron063/simulations/temp/EUR_simulation -P /projects/standard/gdc/public/prs_methods/data/adjusted_1kgPCs.tsv -n 300
 ```
 
-## PRScsx Joint Ancestry Pipeline
+## PRS-CSx Joint Ancestry Pipeline
 This script runs a joint-ancestry PRS analysis using PRS-CSx, starting from GWAS summary statistics and PLINK genotype files, and ending with ancestry-specific PRS scores and R squared evaluation. It is designed to run on an HPC cluster using Slurm.
 
-The original toolset can be found here (PRScsx)[https://github.com/getian107/PRScsx]. 
+The original toolset can be found here [PRS-CSx](https://github.com/getian107/PRScsx). 
 
 ### Overview
 At a high level the pipeline:
@@ -33,10 +33,10 @@ At a high level the pipeline:
 
 ### Requirements
 * Bash (with Slurm support)
-* Python (compatible with PRScsx)
-* PRScsx GitHub repository cloned (PRScsx)[https://github.com/getian107/PRScsx] 
-* PRScsx LD reference panels downloaded (PRScsx LD panels)[https://github.com/getian107/PRScsx/blob/master/README.md]
-* Plink2 (plink2.0 home)[https://www.cog-genomics.org/plink/2.0/]
+* Python (compatible with PRS-CSx)
+* PRS-CSx GitHub repository cloned [PRS-CSx](https://github.com/getian107/PRScsx)
+* PRS-CSx LD reference panels downloaded [PRS-CSx LD panels](https://github.com/getian107/PRScsx/blob/master/README.md)
+* Plink2 [plink2.0 home](https://www.cog-genomics.org/plink/2.0/)
 * R (for PRS evaluation)
 * Conda environment loaded via:
 ```bash
@@ -115,7 +115,7 @@ Each ancestry is processed separately after the joint PRScsx run, but shares the
 
 ### Sample config file
 ```bash
-path_code="/projects/standard/gdc/public/prs_methods/scripts/PRScsx" # Path to cloned PRScsx GitHub repository
+path_code="/projects/standard/gdc/public/prs_methods/scripts/PRScsx" # Path to cloned PRS-CSx GitHub repository
 path_data_root="/projects/standard/gdc/public/prs_methods/data/simulated_1000G" # Path to genomic data 
 path_ref_dir="/projects/standard/gdc/public/prs_methods/ref/ref_PRScsx/1kg_ref" # Path to the downloaded reference LD panels 
 path_plink2="/projects/standard/gdc/public/plink2" # Path to plink2 executable
@@ -130,9 +130,8 @@ study_sample_plink_anc2="${path_data_root}/anc2_plink_files/${anc2}_simulation_s
 prs_pipeline="/projects/standard/gdc/public/prs_methods/scripts/prs_pipeline" # Full path to the cloned prs_pipeline GitHub repository
 ```
 
+
 Work on diverse ancestry PRS pipeline (if they need to be combined do so in the prs method script)
 * CTSLEB - plink files are together for anc1 and anc2, They are separated for summary statitics and reference panels. 
-* PRScsx - plink files could be together or separate for anc1 and anc2. Summary statistic files should be separate.
 * prosper - plink files are together for anc1 and anc2
 * TL-PRS - plink files are separate 
-* viprs
