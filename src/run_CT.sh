@@ -3,7 +3,7 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=10
 #SBATCH --mem=30GB
-#SBATCH --time=5:00:00
+#SBATCH --time=1:00:00
 #SBATCH -p msismall
 #SBATCH -o CT_prs.out
 #SBATCH --job-name CT_prs
@@ -14,6 +14,20 @@
 # GWAS summary stats file 
 # Output path
 
+load_config() {
+    local file_path="$1"
+    if [[ -f "$file_path" ]]; then
+        echo "Loading configuration from: $file_path"
+        # Source the file. Variables set in the config will override defaults.
+        # Note: 'source' is used for shell-readable KEY="VALUE" files.
+        source "$file_path"
+        return 0
+    else
+        echo "ERROR: Configuration file not found at $file_path" >&2
+        return 1
+    fi
+}
+
 ## Defaults
 study_sample=EUR_simulation_study_sample
 sum_stats_file=sumstats_CT_PRSice2.txt
@@ -22,10 +36,36 @@ gwas_pca_eigenvec_file=EUR_simulation_gwas_pca.eigenvec
 output_path=/projects/standard/gdc/public/data/simulated_1000G
 path_prs_pipeline=/projects/standard/gdc/public/prs_methods/prs_pipeline
 
+#### # ---- Parse args ----
+# Check if the number of arguments is 0
+if [ "$#" -eq 0 ]; then
+    echo "Error: No config file provided."
+    echo "Usage: $0 <config>"
+    exit 1
+fi
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --c) config_file="$2"; shift 2; break ;;
+    -h|--help) usage; exit 0;;
+    *) echo "Unknown option: $1"; usage; exit 1;;
+  esac
+done
+
+if [[ -n "$config_file" ]]; then
+    # Case 1: --config was specified. Load it, and it overrides ALL defaults.
+    load_config "$config_file" || exit 1
+else
+    # Case 2: No --config was specified.
+    # The variables set by the individual flags in step 3 are used.
+    echo "No --c file specified. Using command-line arguments and defaults."
+fi
+
+
 final_output_dir=${output_path}/prs_pipeline/CT
 ## load environment
 module load plink
-source /projects/standard/gdc/public/envs/load_miniconda3.sh
+# source /projects/standard/gdc/public/envs/load_miniconda3.sh
 
 ######### Script start ###########
 mkdir -p ${final_output_dir}/temp
