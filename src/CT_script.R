@@ -14,7 +14,8 @@ final_output_dir <- args[4]
 p.threshold <- c(0.001,0.05,0.1,0.2,0.3,0.4,0.5)
 
 # Read phenotype
-phenotype <- read.table(phenotype_file, header=TRUE)
+phenotype <- read.table(phenotype_file, header=FALSE)
+colnames(phenotype)=c("FID", "IID", "phenotype")
 
 # Read PCs
 pcs <- read.table(pcs_file, header=FALSE)
