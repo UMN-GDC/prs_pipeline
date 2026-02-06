@@ -10,29 +10,21 @@
 args = commandArgs(trailingOnly=TRUE)
 
 # test if all arguments are provided: if not, return an error
-if (length(args)!=4) {
-  stop("All four arguments must be provided. 'fam.file qassoc bim.file out.path'.", call.=FALSE)
-} else if (length(args)>=2) {
-  args[1] -> fam.file.path # Full path to the study sample fam file 
-  args[2] -> qassoc.path # Full path to the a summary stat file that has these columns TEST, SNP, & BP
-  args[3] -> bim.file.path # SNP information (.bim file) from population that summary statistics were generated from
-  args[4] -> table.with.beta.se.path # Summary stat file with a header that contains columns rsid, chr, & beta_se
-  args[5] -> out.path # Path for outputs to be stored
-  }
+if (length(args)!= 4) {
+  stop("All four arguments must be provided. 'qassoc.path bim.file.path table.with.beta.se.path out.path'.", call.=FALSE)
 }
+
+args[1] -> qassoc.path # Full path to the a summary stat file that has these columns TEST, SNP, & BP
+args[2] -> bim.file.path # SNP information (.bim file) from population that summary statistics were generated from
+args[3] -> table.with.beta.se.path # Summary stat file with a header that contains columns rsid, chr, & beta_se
+args[4] -> out.path # Path for outputs to be stored
+
 ## load necessary libraries
 suppressMessages(library(dplyr))
 
-# generate phenotype file (needed for PRSice-2 in particular)
-# read in file with FID, IID
-fam.file <- read.table(fam.file.path) 
-head(fam.file)
-phenotype.information <- fam.file[, c("V1", "V2", "V6")]
-phenotype.info <- phenotype.information %>% rename(FID = V1,IID = V2, phenotype = V6) # make sure this is saved somewhere!
-
 # generate summary stats file so that it is in the correct format
 ## read in summary statistics file (same code that was used in LDpred2/lassosum2 code implementation)
-qassoc <- read.table(qassoc.path)
+qassoc <- read.table(qassoc.path, header=TRUE)
 qassoc <- qassoc %>% filter(TEST == "ADD")
 qassoc <- qassoc %>% rename(rsid = SNP, POS = BP)
 bim.file <- bigreadr::fread2(bim.file.path, select = c(1, 4, 5, 6)) # reads in relevant information only (not the entire file; check to see if this needs to be the GWAS or study sample here??)
