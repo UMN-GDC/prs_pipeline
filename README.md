@@ -22,6 +22,9 @@ This script runs a joint-ancestry PRS analysis using PRS-CSx, starting from GWAS
 
 The original toolset can be found here [PRS-CSx](https://github.com/getian107/PRScsx). 
 
+*The development and evaluation of PRS-CSx are described in:
+Y Ruan, YF Lin, YCA Feng, CY Chen, M Lam, Z Guo, Stanley Global Asia Initiatives, L He, A Sawa, AR Martin, S Qin, H Huang, T Ge. Improving polygenic prediction in ancestrally diverse populations. Nature Genetics, 54:573-580, 2022.*
+
 ### Overview
 At a high level the pipeline:
 1. Validates inputs and optional configuration files
@@ -135,6 +138,9 @@ prs_pipeline="/projects/standard/gdc/public/prs_methods/scripts/prs_pipeline" # 
 This script runs a complete **VIPRS-based polygenic risk score (PRS) pipeline** on an HPC system using Slurm. It generates GWAS summary statistics from PLINK genotype data, fits a VIPRS model, computes PRS scores in a study sample, and evaluates predictive performance.
 
 The original toolset can be found [Variational Inference of Polygenic Risk Scores](https://shz9.github.io/viprs/).
+
+*Zabad, S., Gravel, S., & Li, Y. (2023). Fast and accurate Bayesian polygenic risk modeling with variational inference. The American Journal of Human Genetics, 110(5), 741-761. https://doi.org/10.1016/j.ajhg.2023.03.009*
+
 
 ### What this script does
 
