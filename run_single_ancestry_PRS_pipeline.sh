@@ -78,7 +78,8 @@ if [[ "$RUN_CT" == true ]]; then
     mv "${output_path}/gwas/CT_PRSice2_summary_stat_file.txt" "${output_path}/gwas/AFR_CT_PRSice2_summary_stat_file.txt"
 
     # 2. Config & Run
-    CT_CONFIG="${path_repo}/scripts/CT_temp_config.txt"
+    mkdir -p ${output_path}/prs_pipeline/CT/temp
+    CT_CONFIG="${output_path}/prs_pipeline/CT/temp/CT_temp_config.txt"
     cat <<EOF > "$CT_CONFIG"
 study_sample=${study_sample}
 sum_stats_file=${output_path}/gwas/AFR_CT_PRSice2_summary_stat_file.txt
