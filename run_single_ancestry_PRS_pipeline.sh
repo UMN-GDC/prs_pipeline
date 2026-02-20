@@ -126,17 +126,15 @@ if [[ "$RUN_LASSOSUM2" == true ]]; then
     echo "Running below
     Rscript ${path_repo}/src/run_lassosrum2.R \
         --anc_bed ${study_sample}.bed \
-        --ss $qassoc_path \
+        --ss $summary_stats_file \
         --bim $bim_file_path \
-        --beta_se $table_with_beta_se_path \
         --out ${output_path}/prs_pipeline/lassosum2/prs_method
         "
-    # Note: Fixed the typo from your original script (calling run_LDpred2.R instead of run_lassosum2.R)
+
     Rscript "${path_repo}/src/run_lassosum2.R" \
         --anc_bed "${study_sample}.bed" \
-        --ss "$qassoc_path" \
+        --ss "$summary_stats_file" \
         --bim "$bim_file_path" \
-        --beta_se "$table_with_beta_se_path" \
         --out "${output_path}/prs_pipeline/lassosum2/prs_method"
 fi
 
