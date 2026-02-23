@@ -91,6 +91,9 @@ for (chr in 1:22) {
   ind.chr2 <- df_beta$`_NUM_ID_`[ind.chr]
   if (length(ind.chr2) < 2) next
     
+  # Print progress for each chromosome
+  message(paste("Processing Chromosome:", chr, "| SNPs:", length(ind.chr2)))
+  
   corr0 <- snp_cor(G, ind.col = ind.chr2, size = 3/1000, infos.pos = POS2[ind.chr2], ncores = NCORES)
     
   if (is.null(corr)) {
