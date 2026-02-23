@@ -137,7 +137,7 @@ if [[ "$RUN_LASSOSUM2" == true ]]; then
     mkdir -p "${output_path}/prs_pipeline/lassosum2"
     
     echo "Running below
-    Rscript ${path_repo}/src/run_lassosrum2.R \
+    Rscript ${path_repo}/src/run_lassosum2.R \
         --anc_bed ${study_sample}.bed \
         --ss $summary_stats_file \
         --bim $bim_file_path \
