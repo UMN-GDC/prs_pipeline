@@ -1,7 +1,8 @@
 #!/bin/bash
 #SBATCH --time=6:00:00
 #SBATCH --ntasks=1
-#SBATCH --mem=32g
+#SBATCH --cpus-per-task=16
+#SBATCH --mem=64g
 #SBATCH -p agsmall
 #SBATCH -o prs_unified_%j.out
 #SBATCH --job-name prs_pipeline
@@ -92,15 +93,16 @@ if [[ "$skip_ss_generation" == 0 ]]; then
   summary_stats_file="${output_path}/gwas/CT_PRSice2_summary_stat_file.txt"
 fi
 
+awk '{print $1, $2, $6}' OFS="\t" ${study_sample}.fam > ${output_path}/gwas/study_sample_pheno.txt
+
 # --- METHOD 1: Clumping + Thresholding (C+T) ---
 if [[ "$RUN_CT" == true ]]; then
+    (
     echo "[$(date)] Starting C+T Pipeline..."
-    
     
     # 2. Config & Run
   mkdir -p ${output_path}/prs_pipeline/CT/temp
   CT_CONFIG="${output_path}/prs_pipeline/CT/temp/CT_temp_config.txt"
-  awk '{print $1, $2, $6}' OFS="\t" ${study_sample}.fam > ${output_path}/gwas/study_sample_pheno.txt
   cat <<EOF > "$CT_CONFIG"
 study_sample=${study_sample}
 sum_stats_file=${summary_stats_file}
@@ -111,10 +113,12 @@ path_prs_pipeline=${path_repo}
 EOF
 
   bash "${path_repo}/src/run_CT.sh" --c "$CT_CONFIG"
+    ) &
 fi
 
 # --- METHOD 2: LDpred2 ---
 if [[ "$RUN_LDPRED2" == true ]]; then
+    (
     echo "[$(date)] Starting LDpred2 Pipeline..."
     mkdir -p "${output_path}/prs_pipeline/LDpred2"
     echo "Running below
@@ -129,10 +133,12 @@ if [[ "$RUN_LDPRED2" == true ]]; then
         --ss "$summary_stats_file" \
         --bim "$bim_file_path" \
         --out "${output_path}/prs_pipeline/LDpred2/prs_method"
+    ) &
 fi
 
 # --- METHOD 3: lassosum2 ---
 if [[ "$RUN_LASSOSUM2" == true ]]; then
+    (
     echo "[$(date)] Starting lassosum2 Pipeline..."
     mkdir -p "${output_path}/prs_pipeline/lassosum2"
     
@@ -149,17 +155,20 @@ if [[ "$RUN_LASSOSUM2" == true ]]; then
         --ss "$summary_stats_file" \
         --bim "$bim_file_path" \
         --out "${output_path}/prs_pipeline/lassosum2/prs_method"
+    ) &
 fi
 
+wait
 # --- METHOD 4: PRSice2 ---
 if [[ "$RUN_PRSice2" == true ]]; then
+    (
     echo "[$(date)] Starting PRSice2 Pipeline..."
     mkdir -p "${output_path}/prs_pipeline/PRSice2"
     
     echo "Running below
     bash ${path_repo}/src/run_PRSice2.sh \
         $summary_stats_file \
-        $bim_file_path \
+        $study_sample \
         $binary_flag \
         ${output_path}/gwas/study_sample_pheno.txt \
         ${output_path} \
@@ -169,11 +178,14 @@ if [[ "$RUN_PRSice2" == true ]]; then
 # phenotype_file has FID IID phenotype # as a column header 
     bash "${path_repo}/src/run_PRSice2.sh" \
         "$summary_stats_file" \
-        "$bim_file_path" \
+        "$study_sample" \
         "$binary_flag" \
         "${output_path}/gwas/study_sample_pheno.txt" \
         "${output_path}" \
         "${path_repo}"
+    ) &
 fi
 
+echo "All jobs submitted to background. Waiting for completion of all chosen methods."
+wait
 echo "All requested PRS methods have completed."

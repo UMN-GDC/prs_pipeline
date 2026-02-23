@@ -86,8 +86,8 @@ processed_df <- df %>%
     BP = BP,
     A1 = a1,
     A2 = a0,
-    BETA = beta,
-    SE = sebeta,
+    beta = beta,
+    beta_se = sebeta,
     P = P,
     n_eff = n_eff
   ) %>%

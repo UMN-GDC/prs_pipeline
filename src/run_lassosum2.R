@@ -132,4 +132,4 @@ write.csv(params2, paste0(args$out, "_grid_params.csv"), row.names = FALSE)
 cat(paste("Best Test R2:", test_r2, "\n"), file = paste0(args$out, "_final_res.txt"))
 
 unlink("temp_ld_lassosum", recursive = TRUE)
-message("Success! Best Test R2: ", test_r2)
+message(paste0("Success! Best Test R2: ", round(test_r2, 4)))
