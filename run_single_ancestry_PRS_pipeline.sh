@@ -6,11 +6,13 @@
 #SBATCH -o prs_unified_%j.out
 #SBATCH --job-name prs_pipeline
 
+set -eu
 
 # --- Defaults ---
 RUN_CT=false
 RUN_LDPRED2=false
 RUN_LASSOSUM2=false
+RUN_PRSice2=false
 
 # Paths (Consolidated)
 summary_stats_file="/projects/standard/gdc/public/prs_methods/data/Phenotypes/updated_summary_stats/updated_phenocode-aseg_lh_volume_Hippocampus.tsv"
@@ -20,7 +22,8 @@ output_path="/projects/standard/gdc/public/prs_methods/data/simulated_1000G"
 path_repo="/projects/standard/gdc/public/prs_methods/scripts/prs_pipeline"
 n_total_gwas=31968
 gwas_pca_eigenvec_file="/projects/standard/gdc/shared/abcdTest/04-globalAncestry/merged_dataset_pca.eigenvec"
-skip_ss_generation=1
+skip_ss_generation=0
+binary_flag=F # accepts T/F
 
 # --- Environment ---
 module load R/4.4.0-openblas-rocky8
@@ -48,22 +51,32 @@ usage() {
     echo "  -c    Run Clumping + Thresholding (C+T)"
     echo "  -l    Run LDpred2"
     echo "  -s    Run lassosum2"
+    echo "  -P    Run PRSice2. *For this to run as intended (C+T) needs to be run as well.*"
+    echo "  -S    Skip summary stats allignment step. Not recommended."
+    echo "  -B    Include if you are using a binary phenotype."
     exit 1
 }
 
 # --- Arg Parser ---
-while getopts "C:cls" opt; do
+while getopts "C:clsPSB" opt; do
     case "$opt" in
         C) ;; # Handled in pre-load step, but kept here so getopts doesn't complain
         c) RUN_CT=true ;;
         l) RUN_LDPRED2=true ;;
         s) RUN_LASSOSUM2=true ;;
+        P) RUN_PRSice2=true ;;
+        S) skip_ss_generation=1 ;;
+        B) binary_flag=T ;;
         *) usage ;;
     esac
 done
 
 # If no flags provided, show usage
-if [[ "$RUN_CT" == false && "$RUN_LDPRED2" == false && "$RUN_LASSOSUM2" == false ]]; then
+if [[ "$RUN_CT" == false && "$RUN_LDPRED2" == false && "$RUN_LASSOSUM2" == false && "$RUN_PRSice2" == false ]]; then
+    usage
+fi
+
+if [[ "$RUN_CT" == false && "$RUN_PRSice2" == true ]]; then
     usage
 fi
 
@@ -136,6 +149,31 @@ if [[ "$RUN_LASSOSUM2" == true ]]; then
         --ss "$summary_stats_file" \
         --bim "$bim_file_path" \
         --out "${output_path}/prs_pipeline/lassosum2/prs_method"
+fi
+
+# --- METHOD 4: PRSice2 ---
+if [[ "$RUN_PRSice2" == true ]]; then
+    echo "[$(date)] Starting PRSice2 Pipeline..."
+    mkdir -p "${output_path}/prs_pipeline/PRSice2"
+    
+    echo "Running below
+    bash ${path_repo}/src/run_PRSice2.sh \
+        $summary_stats_file \
+        $bim_file_path \
+        $binary_flag \
+        ${output_path}/gwas/study_sample_pheno.txt \
+        ${output_path} \
+        ${path_repo}
+        "
+
+# phenotype_file has FID IID phenotype # as a column header 
+    bash "${path_repo}/src/run_PRSice2.sh" \
+        "$summary_stats_file" \
+        "$bim_file_path" \
+        "$binary_flag" \
+        "${output_path}/gwas/study_sample_pheno.txt" \
+        "${output_path}" \
+        "${path_repo}"
 fi
 
 echo "All requested PRS methods have completed."
