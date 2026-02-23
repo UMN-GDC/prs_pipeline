@@ -13,10 +13,45 @@ parser$add_argument("--n_total", type="integer", help="Total sample size (if con
 
 args <- parser$parse_args()
 
-# 2. LOAD DATA
+# 2. LOAD DATA and ensure we have proper inputs
 message("Reading input file: ", args$input)
 # fread2 handles tab-separated files automatically
 df <- bigreadr::fread2(args$input)
+target_rsid <- c("rsid", "rs_id", "rsids")
+actual_col <- intersect(target_rsid, names(df))[1]
+if (is.na(actual_col)) {
+  stop("Error: Could not find an RSID column. Expected one of: ", 
+       paste(target_rsid, collapse = ", "))
+}
+
+a1_options <- c("A1", "alt", "a1")
+a1_present <- intersect(a1_options, names(df))[1]
+if (is.na(a1_present)) {
+  stop("Error: Could not find an a1 column. Expected one of: ", 
+       paste(a1_options, collapse = ", "))
+}
+
+pval_options <- c("p", "pval")
+pval_present <- intersect(pval_options, names(df))[1]
+if (is.na(pval_present)) {
+  stop("Error: Could not find an a1 column. Expected one of: ", 
+       paste(pval_options, collapse = ", "))
+}
+
+sebeta_options <- c("sebeta", "beta_se")
+sebeta_present <- intersect(sebeta_options, names(df))[1]
+if (is.na(sebeta_present)) {
+  stop("Error: Could not find an a1 column. Expected one of: ", 
+       paste(sebeta_options, collapse = ", "))
+}
+
+df <- df %>%
+  rename(
+    rsid = all_of(actual_col),
+    alt = all_of(a1_present),
+    pval = all_of(pval_present),
+    sebeta = all_of(sebeta_present)
+  )
 
 message("Reading BIM file: ", args$bim)
 bim <- bigreadr::fread2(args$bim, select = c(1, 2, 4, 5, 6))
@@ -26,8 +61,6 @@ colnames(bim) <- c("bim.chr", "rsid", "bim.pos", "bim.a1", "bim.a0")
 message("Aligning alleles by RSID and calculating n_eff if not provided...")
 
 processed_df <- df %>%
-  # Match your specific column names to internal variables
-  rename(rsid = rsids) %>%
   # Join with BIM to ensure genomic coordinates match your genotypes
   inner_join(bim, by = c("rsid")) %>%
   mutate(
