@@ -211,6 +211,121 @@ Intermediate PLINK logs and temporary files are organized into subdirectories au
 * Phenotype files are generated automatically from provided study population plink files. It is possible to adjust this if desired.
 * Designed for simulated or real genotype data split by ancestry
 
+## Single Ancestry PRS Pipeline
+A modular SLURM-based pipeline for calculating Polygenic Risk Scores (PRS) using multiple state-of-the-art methods. This tool automates the heavy lifting of data alignment and allows you to run several PRS algortihms in parallel.
+
+### Features
+* **Multi-Method Support**: Run **C+T**, **LDpred2**, **lassosum2**, and **PRSice-2** with a single command.
+* **Automated Alignment**: Handles the synchronization between GWAS summary statistics and target genotype `.bim` files.
+* **HPC Optimized**: Build-in SLURM directives and parallel background processing for efficient resource usage.
+* **Configurable**: Supports external configuration files to keep your scripts clean and reporducible.
+
+### Prerequisites
+**HPC Evnironment**
+* Scheduler: SLURM
+* R Version: 4.4.0+ (OpenBLAS recommended)
+* R Packages: `bigsnpr `, `optparse`, `data.table`, `magrittr  `
+
+**Required Tools**
+* PRSice-2: The executable should be located within your `${path_repo}/src/` directory.
+
+**Summary Statistics File Format**
+The file needs to have a column header and contain the following columns. If there are multiple listed in `{}` that means that any 1 of the options is recognized but the file cannot contain more than 1 of these overlapping columns.
+* {rsid, rs_id, rsids}
+* {A1, alt, a1}
+* {p, pval}
+* {sebeta, beta_se}
+* beta
+* ref
+* chrom
+
+### Usage
+
+#### Basic Execution
+Submit the job to the SLURM queue by selecting your desired methods via flags including the path to your config file.
+
+```bash
+sbatch prs_pipeline/run_single_ancestry_PRS_pipeline.sh -c -l -s -P -C config.txt
+```
+
+#### Flag Reference
+| Flag | Description |
+| -------- | ------- |
+|  `-C <file>` | **Config**: load an external file to override default paths. |
+| `-c` | **C+T**: Run Clumping + Thresholding. |
+| `-l` | **LDpred2**: Run the LDpred2 algorithm (via `bigsnpr`) |
+| `-s` | **lassosum2**: Run the lassosum2 algorithm (via `bigsnpr`) |
+| `-P` | **PRSice2**: Run PRSice-2. Note: Requires `-c` to be active. |
+| `-B` | **Binary**: Use this flag for binary phenotypes (Case/Control). |
+| `-S` | **Skip**: Skip the initial summary stats alignment step (Use with caution). |
+
+### Configuration
+Instead of modifying the main script, create a `my_project.conf` file to define your data paths:
+
+```bash
+# my_project.conf
+summary_stats_file="/path/to/your/gwas_stats.tsv"
+bim_file_path="/path/to/your/genotypes.bim"
+study_sample="/path/to/your/genotype_prefix"
+output_path="/path/to/results"
+n_total_gwas=31968
+```
+Then run:
+```
+sbatch prs_pipeline/run_single_ancestry_PRS_pipeline.sh -c -l -s -P -C config.txt
+```
+
+### Output Structure
+The pipeline automatically organizes results into a clean directory tree:
+
+```Plaintext
+output_path/
+|-- gwas/
+|   --- CT_PRSice2_summary_stat_file.txt  # Aligned stats
+|   --- study_sample_pheno.txt            # Extracted phenotypes
+|-- prs_pipeline/
+|   --- CT/          # Clumping + Thresholding results
+|   --- LDpred2/     # Bayesian PRS results
+|   --- lassosum2/   # Penalized regression results
+|   --- PRSice2/     # PRSice-2 tables and plots
+```
+
+### Imporant Notes
+* **Resource Allocation**: The script defaults to **16 CPUs** and **64GB RAM**. Adjust the `#SBATCH` headers if your LD reference panel or genotype file is exceptionally large.
+* **C+T Dependency**: The PRSice-2 implementation in this script relies on the data preparation steps performed during the C+T run. Always include `-c` when using `-P`.
+* **Environment**: Ensure `R_LIBS_USER` in the script points to the library where `bigsnpr` is installed.
+
+### Troubleshooting
+Memory Errors: If LDpred2 fails, ensure the --mem=64g SLURM header is sufficient for your LD reference panel.
+Missing Variants: If the aligned summary stats file is empty, check that your .bim file RSIDs match the format in your summary statistics.
+
+### Original References and Documentation
+The following methods are implemented in this pipeline. If you use these results in a publication, please cite the corresponding papers:
+1. Clumping + Thresholding (C+T)
+* Original Method: The foundational approach used since the early days of GWAS (e.g., Purcell et al., 2009).
+* Key Reference: [Choi et al. (2020) - A guide to performing Polygenic Risk Score analyses](https://doi.org/10.1038/s41596-020-0353-1)
+* Implementation Note: This pipeline uses a standard clumping approach typically executed via PLINK.
+2. LDpred2
+* Original Paper: [Privé et al. (2020) - LDpred2: better, faster, stronger](https://doi.org/10.1093/bioinformatics/btaa1029)
+* Documentation: [bigsnpr - LDpred2 Tutorial](https://privefl.github.io/bigsnpr/articles/LDpred2.html)
+* GitHub: [privefl/bigsnpr](https://github.com/privefl/bigsnpr)
+3. lassosum2
+* Original Paper: [Privé et al. (2022) - lassosum2: an updated version complementing LDpred2](https://www.google.com/search?q=https://doi.org/10.1016/j.xhgg.2022.100136)
+* Documentation: [bigsnpr - lassosum2 Reference](https://privefl.github.io/bigsnpr/reference/snp_lassosum2.html)
+* GitHub: [privefl/bigsnpr](https://github.com/privefl/bigsnpr)
+4. PRSice-2
+* Original Paper: [Choi and O'Reilly (2019) - PRSice-2: Polygenic Risk Score software for biobank-scale data](https://doi.org/10.1093/gigascience/giz082)
+* Documentation: [Official PRSice-2 Documentation](https://www.prsice.info/)
+* GitHub: [ChoiS_github/PRSice](https://github.com/choishingwan/PRSice)
+
+#### Quick Comparison of Methods
+
+| Method | Approach | LD Handling |
+| -------- | ------- | ------- |
+| C+T | Heuristic | Physical/Correlation Clumping |
+| LDpred2 | Bayesian | Gibbs Sampler (Markov Chain Monte Carlo) |
+| lassosum2 | Penalized Regression | Elastic Net / Coordinate Descent |
+| PRSice-2 | C+T Optimization | Automated High-Resolution Clumping |
 
 ## TL-PRS
 * TL-PRS - plink files are separate 
