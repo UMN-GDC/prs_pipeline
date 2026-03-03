@@ -45,6 +45,8 @@ if (is.na(sebeta_present)) {
        paste(sebeta_options, collapse = ", "))
 }
 
+message("Initial rows: ", nrow(df))
+
 df <- df %>%
   rename(
     rsid = all_of(actual_col),
@@ -56,9 +58,30 @@ df <- df %>%
 message("Reading BIM file: ", args$bim)
 bim <- bigreadr::fread2(args$bim, select = c(1, 2, 4, 5, 6))
 colnames(bim) <- c("bim.chr", "rsid", "bim.pos", "bim.a1", "bim.a0")
+head(bim)
 
-# 3. TRANSFORMATION LOGIC
-message("Aligning alleles by RSID and calculating n_eff if not provided...")
+# Cleaning files
+message("Cleaning RSID columns for matching...")
+df <- df %>%
+  mutate(
+    # 1. Take only the first ID if there's a comma (e.g., "rs1,rs2" -> "rs1")
+    rsid = sub(",.*", "", rsid),
+    # 2. Remove any accidental whitespace
+    rsid = trimws(rsid)
+  )
+
+# Clean the BIM RSIDs (just in case)
+bim <- bim %>%
+  mutate(rsid = trimws(rsid))
+
+message("Aligning alleles by RSID...")
+joined_df <- inner_join(df, bim, by = "rsid")
+
+message("Rows after cleaning and joining: ", nrow(joined_df))
+
+message("Checking the rsid columns")
+head(df$rsid)
+head(bim$rsid)
 
 processed_df <- df %>%
   # Join with BIM to ensure genomic coordinates match your genotypes
