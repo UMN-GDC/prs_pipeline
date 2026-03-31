@@ -5,6 +5,7 @@ library(bigsnpr)
 library(ggplot2)
 library(dplyr)
 library(bigreadr)
+library(data.table)
 
 # 1. SET UP ARGUMENT PARSER
 parser <- ArgumentParser(description='LDpred2 Pipeline for Polygenic Risk Scores')
@@ -170,10 +171,30 @@ r2_grid <- pcor(pred_grid_best, y[ind.test], NULL)
 
 # --- 7. OUTPUT RESULTS ---
 
+# 1. Calculate scores for EVERYONE (not just the test set)
+# We already have pred_grid for everyone, we just need to pick the best column
+prs_grid_all <- pred_grid[, best_grid_idx]
+
+# Recalculate Infinitesimal for everyone (removing the ind.row restriction)
+prs_inf_all <- big_prodVec(G, beta_inf, ind.col = df_beta[["_NUM_ID_"]])
+
+# 2. Create the individual-level table
+# obj.bigSNP$fam contains family.ID (FID) and sample.ID (IID)
+prs_report <- data.frame(
+  FID      = obj.bigSNP$fam$family.ID,
+  IID      = obj.bigSNP$fam$sample.ID,
+  PRS_inf  = prs_inf_all,
+  PRS_grid = prs_grid_all
+)
+
+# 3. Save the individual scores
+fwrite(prs_report, paste0(args$out, "_individual_scores.txt"), sep = "\t", row.names = FALSE)
+
+# 4. Save the performance summary
 results <- data.frame(
   Method = c("Infinitesimal", "Grid"),
   R2 = c(r2_inf^2, r2_grid^2)
 )
 write.csv(results, paste0(args$out, "_performance.csv"), row.names = FALSE)
 
-message("Success! Results saved with prefix: ", args$out)
+message("Success! Individual scores saved to: ", paste0(args$out, "_individual_scores.txt"))

@@ -285,9 +285,16 @@ output_path/
 |   --- study_sample_pheno.txt            # Extracted phenotypes
 |-- prs_pipeline/
 |   --- CT/          # Clumping + Thresholding results
+|       ---- CT_prs_results.txt
+|       ---- temp/
+|          ----- temp.0.X.profile # Contains the PRS score output. Column of interest is SCORE
 |   --- LDpred2/     # Bayesian PRS results
+|       ---- prs_method_individual_scores.txt # Contains the PRS score output. Column of interest is PRS_inf or PRS_grid depending on biological assumptions
 |   --- lassosum2/   # Penalized regression results
+|       ---- prs_method_grid_params.csv # Contains the PRS score output. Column of interest is "score"
 |   --- PRSice2/     # PRSice-2 tables and plots
+|       ---- prs_method/
+|          ----- PRSice2_outputs.best # Contains the PRS score output. Column of interest is PRS
 ```
 
 ### Imporant Notes
