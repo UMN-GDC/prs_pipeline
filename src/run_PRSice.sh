@@ -9,8 +9,6 @@
 #SBATCH --job-name PRSice2
 
 
-module load R/4.4.0-openblas-rocky8
-export R_LIBS_USER=/projects/standard/gdc/public/Ref/R
 
 path_PRSice=/projects/standard/gdc/public/prs_methods/ref/PRSice/PRSice.R
 sum_stats_file=/projects/standard/gdc/public/prs_methods/data/simulated_1000G/gwas/AFR_CT_PRSice2_summary_stat_file.txt

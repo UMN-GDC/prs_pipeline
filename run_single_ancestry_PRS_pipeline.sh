@@ -27,8 +27,9 @@ skip_ss_generation=0
 binary_flag=F # accepts T/F
 
 # --- Environment ---
-module load R/4.4.0-openblas-rocky8
-export R_LIBS_USER="/projects/standard/gdc/public/Ref/R"
+source /projects/standard/gdc/public/envs/load_miniconda3.sh
+conda deactivate
+conda activate singlePRS
 
 # --- Pre-load config ---
 for arg in "$@"; do
