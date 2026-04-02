@@ -10,6 +10,11 @@ dependencies:
   - r-data.table
   - r-tidyverse
   - r-optparse
-  - r-colorbrewer
+  - r-rcolorbrewer
   - prsice
+  - r-argparse
+  - r-bigreadr
+  - plink
+  - r-bigsnpr
+  - r-matrix
 prefix: /projects/standard/gdc/public/envs/singlePRS
