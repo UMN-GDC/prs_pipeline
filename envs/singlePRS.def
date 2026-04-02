@@ -1,0 +1,17 @@
+Bootstrap: docker
+From: mambaorg/micromamba:latest
+
+%arguments
+    ENV_NAME=singlePRS
+
+%environment
+    export MAMBA_ROOT_PREFIX=/opt/conda
+    export PATH="/opt/conda/envs/{{ ENV_NAME }}/bin:$PATH"
+    export LC_ALL=C.UTF-8
+
+%files
+    singlePRS.yml /app/singlePRS.yml
+
+%post
+    /usr/bin/micromamba create -y -n {{ ENV_NAME }} -f /app/singlePRS.yml
+    /usr/bin/micromamba clean --all -y
