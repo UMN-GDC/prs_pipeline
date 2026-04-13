@@ -10,8 +10,8 @@ From: mambaorg/micromamba:latest
     export LC_ALL=C.UTF-8
 
 %files
-    singlePRS.yml /app/singlePRS.yml
+    singlePRS.yaml /app/singlePRS.yaml
 
 %post
-    /usr/bin/micromamba create -y -n {{ ENV_NAME }} -f /app/singlePRS.yml
+    /usr/bin/micromamba create -y -n {{ ENV_NAME }} -f /app/singlePRS.yaml
     /usr/bin/micromamba clean --all -y
