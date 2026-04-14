@@ -10,8 +10,7 @@ final_output=${output_path}/prs_pipeline/PRSice2/prs_method
 mkdir -p $final_output
 
 # run PRSice-2 on simulated data--note that this is the temporary data and is unlikely to produce correct results (use this more for formatting purposes)
-Rscript "${path_repo}/src/PRSice.R" \
-    --prsice "${path_repo}/src/PRSice_linux" \
+PRSice \
     --base ${summary_stats_file} \
     --target ${study_sample} \
     --binary-target ${binary_flag} \
