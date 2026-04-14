@@ -63,8 +63,7 @@ fi
 
 
 final_output_dir=${output_path}/prs_pipeline/CT
-## load environment
-module load plink
+
 # source /projects/standard/gdc/public/envs/load_miniconda3.sh
 
 ######### Script start ###########

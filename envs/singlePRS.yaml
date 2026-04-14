@@ -1,0 +1,20 @@
+name: singlePRS
+channels:
+  - bioconda
+  - r
+  - conda-forge
+  - nodefaults
+  - dnachun
+dependencies:
+  - r-base=4.4.0
+  - r-data.table
+  - r-tidyverse
+  - r-optparse
+  - r-rcolorbrewer
+  - prsice
+  - r-argparse
+  - r-bigreadr
+  - plink
+  - r-bigsnpr
+  - r-matrix
+prefix: /projects/standard/gdc/public/envs/singlePRS
