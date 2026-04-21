@@ -1,0 +1,17 @@
+# --- Paths ---
+summary_stats_file="/projects/standard/gdc/public/prs_methods/data/simulated_1000G/gwas/target_sumstats_CTSLEB.txt"
+bim_file_path="/projects/standard/gdc/public/prs_methods/data/simulated_1000G/anc1_plink_files/archived/AFR_simulation_gwas.bim"
+study_sample="/projects/standard/gdc/public/prs_methods/data/simulated_1000G/anc1_plink_files/AFR_simulation_study_sample"
+output_path="/scratch.global/baron063/testing/singlePRS"
+path_repo="/scratch.global/baron063/testing/documentation_updates/prs_pipeline"
+skip_ss_generation=0
+n_total_gwas=300
+
+# --- Parameters ---
+gwas_pca_eigenvec_file="/projects/standard/gdc/public/prs_methods/data/simulated_1000G/gwas/adjusted_1kgPCs.tsv"
+phenotype_info_file="/projects/standard/gdc/public/prs_methods/data/simulated_1000G/prs_pipeline/viprs/study_sample_pheno.txt"
+
+RUN_CT=true
+RUN_LDPRED2=true
+RUN_LASSOSUM2=true
+RUN_PRSice2=true
