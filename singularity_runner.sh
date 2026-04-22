@@ -4,8 +4,8 @@
 
 set -eu
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SIF_PATH="${SCRIPT_DIR}/singleprs_latest.sif"
+#SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+#SIF_PATH="${SCRIPT_DIR}/singleprs_latest.sif"
 ENV_NAME="singlePRS"
 
 usage() {
@@ -41,11 +41,12 @@ run_in_container() {
     shift
     
     singularity exec \
-        --bind "${SCRIPT_DIR}:${SCRIPT_DIR}" \
+        --bind "${path_repo}:${path_repo}" \
         --bind "${binds}" \
         --bind "/tmp" \
-        --pwd "${SCRIPT_DIR}" \
-        "${SIF_PATH}" \
+        --bind "$output_path" \
+        --pwd "${path_repo}" \
+        "${path_repo}/singleprs_latest.sif" \
         "$@"
 }
 
@@ -71,19 +72,27 @@ auto_bind() {
     echo "$binds"
 }
 
+PIPELINE_ARGS=""
+
 # Parse own args first to find config
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --bind) BIND_PATHS="$2"; shift 2 ;;
-        --) shift; break ;;
-        --C|-C) CONFIG_FILE="$2"; shift 2 ;;
-        -*) shift ;;
-        *) break ;;
+        --bind) 
+            BIND_PATHS="$2"; shift 2 ;;
+        --C|-C) 
+            CONFIG_FILE=$(realpath "$2"); 
+            source ${CONFIG_FILE}
+            PIPELINE_ARGS+="-C $2 "
+            shift 2 ;;
+        --) 
+            shift; PIPELINE_ARGS+="$* "; break ;;
+        -*) 
+            PIPELINE_ARGS+="$1 "; shift ;;
+        *) 
+            PIPELINE_ARGS+="$1"; shift ;;
     esac
 done
 
-# Collect any remaining args for pipeline
-PIPELINE_ARGS="$@"
 
 # Build bind paths
 BIND_PATHS="${BIND_PATHS:-$(auto_bind)}"
@@ -93,4 +102,4 @@ fi
 
 # Execute in container
 run_in_container "${BIND_PATHS}" \
-    bash "${SCRIPT_DIR}/run_single_ancestry_PRS_pipeline.sh" ${PIPELINE_ARGS}
+    bash "${path_repo}/run_single_ancestry_PRS_pipeline.sh" ${PIPELINE_ARGS}
