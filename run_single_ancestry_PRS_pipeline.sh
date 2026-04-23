@@ -157,7 +157,7 @@ if [[ "$RUN_LASSOSUM2" == true ]]; then
     ) &
 fi
 
-wait
+
 # --- METHOD 4: PRSice2 ---
 if [[ "$RUN_PRSice2" == true ]]; then
     (
