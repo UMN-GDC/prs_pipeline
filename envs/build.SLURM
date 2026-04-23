@@ -17,8 +17,6 @@ export SINGULARITY_CACHEDIR=/scratch.global/baron063/PRS/apptainer_build_tmp
 
 #apptainer build --fakeroot ancNreport.sif ancNreport.def # takes ~ 40 mins
 apptainer build --fakeroot singlePRS.sif singlePRS.def # takes ~ 40 mins
-# apptainer build --fakeroot rfmix.sif rfmix.def
-# apptainer build --fakeroot mash.sif mash.def
 
 # 4. Optional: Clean up the temporary build files after success
 # rm -rf $BUILD_DIR

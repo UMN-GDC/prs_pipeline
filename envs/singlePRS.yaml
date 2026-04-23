@@ -17,4 +17,6 @@ dependencies:
   - plink
   - r-bigsnpr
   - r-matrix
+  - numpy
+  - pandas
 prefix: /projects/standard/gdc/public/envs/singlePRS

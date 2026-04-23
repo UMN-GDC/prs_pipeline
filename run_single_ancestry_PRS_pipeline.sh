@@ -27,8 +27,7 @@ skip_ss_generation=0
 binary_flag=F # accepts T/F
 
 # --- Environment ---
-source /projects/standard/gdc/public/envs/load_miniconda3-2.sh
-conda activate singlePRS
+# (Environment loaded via Singularity container - conda activation removed)
 
 # --- Pre-load config ---
 for arg in "$@"; do
@@ -158,7 +157,7 @@ if [[ "$RUN_LASSOSUM2" == true ]]; then
     ) &
 fi
 
-wait
+
 # --- METHOD 4: PRSice2 ---
 if [[ "$RUN_PRSice2" == true ]]; then
     (
