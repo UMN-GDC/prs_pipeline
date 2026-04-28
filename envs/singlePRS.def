@@ -14,4 +14,7 @@ From: mambaorg/micromamba:latest
 
 %post
     /usr/bin/micromamba create -y -n {{ ENV_NAME }} -f /app/singlePRS.yaml
+
+    /usr/bin/micromamba run -n {{ ENV_NAME }} python -m pip install "viprs>=0.1"
+
     /usr/bin/micromamba clean --all -y
