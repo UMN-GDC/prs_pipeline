@@ -19,8 +19,11 @@ dependencies:
   - r-bigsnpr
   - r-matrix
   - r-prosper
+  - r-readr
   - numpy
   - pandas
   - scipy
   - h5py
+  - cython
+  - pkg-config
 prefix: /projects/standard/gdc/public/envs/singlePRS
