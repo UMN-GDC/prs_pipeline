@@ -15,8 +15,12 @@ dependencies:
   - r-argparse
   - r-bigreadr
   - plink
+  - plink2
   - r-bigsnpr
   - r-matrix
+  - r-prosper
   - numpy
   - pandas
+  - scipy
+  - h5py
 prefix: /projects/standard/gdc/public/envs/singlePRS
