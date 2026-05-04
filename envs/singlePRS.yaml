@@ -20,6 +20,10 @@ dependencies:
   - r-matrix
   - r-prosper
   - r-readr
+  - r-devtools
+  - r-caret
+  - r-matrix
+  - r-mass
   - numpy
   - pandas
   - scipy
