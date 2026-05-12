@@ -76,10 +76,6 @@ if [[ "$RUN_CT" == false && "$RUN_LDPRED2" == false && "$RUN_LASSOSUM2" == false
     usage
 fi
 
-if [[ "$RUN_CT" == false && "$RUN_PRSice2" == true ]]; then
-    usage
-fi
-
 if [[ "$skip_ss_generation" == 0 ]]; then
   mkdir -p ${output_path}/gwas
     
