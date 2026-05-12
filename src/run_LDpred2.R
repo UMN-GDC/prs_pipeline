@@ -6,6 +6,7 @@ library(ggplot2)
 library(dplyr)
 library(bigreadr)
 library(data.table)
+options(bigstatsr.check.parallel = FALSE)
 
 # 1. SET UP ARGUMENT PARSER
 parser <- ArgumentParser(description='LDpred2 Pipeline for Polygenic Risk Scores')
@@ -42,7 +43,7 @@ G      <- obj.bigSNP$genotypes
 CHR_id <- obj.bigSNP$map$chromosome
 POS_id <- obj.bigSNP$map$physical.pos
 y      <- obj.bigSNP$fam$affection
-NCORES <- nb_cores()
+NCORES <- 1
 
 # Load BIM for alignment
 bim.file <- fread2(args$bim, select = c(1, 4, 5, 6))

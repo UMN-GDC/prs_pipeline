@@ -6,6 +6,8 @@ library(ggplot2)
 library(dplyr)
 library(bigreadr)
 
+options(bigstatsr.check.parallel = FALSE)
+
 # 1. SET UP ARGUMENT PARSER
 parser <- ArgumentParser(description='lassosum2 Pipeline for Polygenic Risk Scores')
 parser$add_argument("--anc_bed", type="character", help="Path to the plink .bed file")
@@ -31,7 +33,7 @@ if (!is.null(args$anc_bed)) {
 obj.bigSNP <- snp_attach(args$rds)
 G      <- obj.bigSNP$genotypes
 y      <- obj.bigSNP$fam$affection
-NCORES <- nb_cores()
+NCORES <- 1
 
 # --- 3. SUMMARY STATS PREPARATION (Adjusted for your new columns) ---
 # Use fread2 to handle the 9-column file
