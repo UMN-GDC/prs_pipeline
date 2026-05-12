@@ -92,7 +92,7 @@ awk '{print $1, $2, $6}' OFS="\t" ${study_sample}.fam > ${output_path}/gwas/stud
 
 # --- METHOD 1: Clumping + Thresholding (C+T) ---
 if [[ "$RUN_CT" == true ]]; then
-    
+   ( 
     echo "[$(date)] Starting C+T Pipeline..."
     
     # 2. Config & Run
@@ -108,12 +108,12 @@ path_prs_pipeline=${path_repo}
 EOF
 
   bash "${path_repo}/src/run_CT.sh" --c "$CT_CONFIG"
-     
+  ) &   
 fi
 
 # --- METHOD 2: LDpred2 ---
 if [[ "$RUN_LDPRED2" == true ]]; then
-    
+    (
     echo "[$(date)] Starting LDpred2 Pipeline..."
     mkdir -p "${output_path}/prs_pipeline/LDpred2"
     echo "Running below
@@ -128,12 +128,12 @@ if [[ "$RUN_LDPRED2" == true ]]; then
         --ss "$summary_stats_file" \
         --bim "$bim_file_path" \
         --out "${output_path}/prs_pipeline/LDpred2/prs_method"
-    
+    ) &
 fi
 
 # --- METHOD 3: lassosum2 ---
 if [[ "$RUN_LASSOSUM2" == true ]]; then
-    
+    (
     echo "[$(date)] Starting lassosum2 Pipeline..."
     mkdir -p "${output_path}/prs_pipeline/lassosum2"
     
@@ -150,7 +150,7 @@ if [[ "$RUN_LASSOSUM2" == true ]]; then
         --ss "$summary_stats_file" \
         --bim "$bim_file_path" \
         --out "${output_path}/prs_pipeline/lassosum2/prs_method"
-    
+    ) &
 fi
 
 
