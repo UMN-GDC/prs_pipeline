@@ -133,3 +133,33 @@ cat(paste("Best Test R2:", test_r2, "\n"), file = paste0(args$out, "_final_res.t
 
 unlink("temp_ld_lassosum", recursive = TRUE)
 message(paste0("Success! Best Test R2: ", round(test_r2, 4)))
+
+# --- 7. Save RESULTS ---
+# pred_grid2 contains rows = individuals, columns = grid points
+full_results <- data.frame(
+  FID = obj.bigSNP$fam[, 1],
+  IID = obj.bigSNP$fam[, 2],
+  pred_grid2
+)
+
+# Rename columns to match the row index of the grid_params.csv for easy lookup
+colnames(full_results)[3:ncol(full_results)] <- paste0("grid_", 1:nrow(params2))
+
+# Write to a compressed CSV or text file (it can be large)
+bigreadr::fwrite2(full_results, paste0(args$out, "_full_predictions.csv"))
+
+# --- 8. Simplify the process of getting SCORE column ---
+# Find the index of the best performing model
+best_idx <- which.max(params2$score)
+best_col_name <- paste0("grid_", best_idx)
+
+# Extract only FID, IID, and the Best PRS
+final_prs_df <- full_results[, c("FID", "IID", best_col_name)]
+
+# Rename the column for clarity
+colnames(final_prs_df)[3] <- "Best_PRS_Score"
+
+# Save the finalized single-score file
+bigreadr::fwrite2(final_prs_df, paste0(args$out, "_final_best_prs.csv"))
+
+message(paste("Selected", best_col_name, "as the best model based on validation score."))
