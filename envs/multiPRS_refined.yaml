@@ -1,0 +1,32 @@
+name: singlePRS
+channels:
+  - bioconda
+  - conda-forge
+  - nodefaults
+  - r_test
+  - dnachun
+dependencies:
+  - r-base=4.3.0
+  - r-data.table
+  - r-tidyverse
+  - r-optparse
+  - r-rcolorbrewer
+  - prsice
+  - r-argparse
+  - r-bigreadr
+  - plink
+  - plink2
+  - r-bigsnpr
+  - r-matrix
+  - r-readr
+  - r-devtools
+  - r-caret
+  - r-matrix
+  - r-mass
+  - numpy
+  - pandas
+  - scipy
+  - h5py
+  - cython
+  - pkg-config
+prefix: /projects/standard/gdc/public/envs/multiPRS
