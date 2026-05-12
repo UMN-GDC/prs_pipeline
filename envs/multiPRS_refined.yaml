@@ -1,9 +1,9 @@
 name: singlePRS
 channels:
   - bioconda
-  - r
   - conda-forge
   - nodefaults
+  - r_test
   - dnachun
 dependencies:
   - r-base=4.3.0
@@ -18,7 +18,6 @@ dependencies:
   - plink2
   - r-bigsnpr
   - r-matrix
-  - r-prosper
   - r-readr
   - r-devtools
   - r-caret
@@ -30,4 +29,4 @@ dependencies:
   - h5py
   - cython
   - pkg-config
-prefix: /projects/standard/gdc/public/envs/singlePRS
+prefix: /projects/standard/gdc/public/envs/multiPRS

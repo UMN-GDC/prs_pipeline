@@ -2,7 +2,7 @@ Bootstrap: docker
 From: mambaorg/micromamba:latest
 
 %arguments
-    ENV_NAME=singlePRS
+    ENV_NAME=multiPRS
 
 %environment
     export MAMBA_ROOT_PREFIX=/opt/conda
@@ -10,11 +10,13 @@ From: mambaorg/micromamba:latest
     export LC_ALL=C.UTF-8
 
 %files
-    singlePRS.yaml /app/singlePRS.yaml
+    multiPRS_refined.yaml /app/multiPRS.yaml
 
 %post
-    /usr/bin/micromamba create -y -n {{ ENV_NAME }} -f /app/singlePRS.yaml
+    /usr/bin/micromamba create -y -n {{ ENV_NAME }} -f /app/multiPRS.yaml
 
     /usr/bin/micromamba run -n {{ ENV_NAME }} python -m pip install "viprs>=0.1"
     
+    /usr/bin/micromamba run -n {{ ENV_NAME }} Rscript -e 'devtools::install_github("andrewhaoyu/CTSLEB")'
+
     /usr/bin/micromamba clean --all -y
