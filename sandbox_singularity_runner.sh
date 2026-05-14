@@ -13,7 +13,7 @@
 set -eu
 
 #SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-#SIF_PATH="${SCRIPT_DIR}/singleprs_latest.sif"
+#SIF_PATH="${SCRIPT_DIR}/prsv2_latest.sif"
 ENV_NAME="singlePRS"
 
 usage() {
@@ -52,7 +52,7 @@ run_in_container() {
         ${binds:+--bind "$binds"} \
         --bind "/tmp:/tmp" \
         --pwd "${path_repo}" \
-        "${path_repo}/singleprs_latest.sif" \
+        "${path_repo}/prsv2_latest.sif" \
         "$@"
 }
 
