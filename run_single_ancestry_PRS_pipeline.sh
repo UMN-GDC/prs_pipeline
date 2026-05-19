@@ -23,6 +23,7 @@ output_path="/projects/standard/gdc/public/prs_methods/data/simulated_1000G"
 path_repo="/projects/standard/gdc/public/prs_methods/scripts/prs_pipeline"
 n_total_gwas=31968
 gwas_pca_eigenvec_file="/projects/standard/gdc/shared/abcdTest/04-globalAncestry/merged_dataset_pca.eigenvec"
+afreq_file=""
 skip_ss_generation=0
 binary_flag=F # accepts T/F
 
@@ -116,18 +117,13 @@ if [[ "$RUN_LDPRED2" == true ]]; then
     (
     echo "[$(date)] Starting LDpred2 Pipeline..."
     mkdir -p "${output_path}/prs_pipeline/LDpred2"
+    LDpred2_args="--anc_bed ${study_sample}.bed --ss $summary_stats_file --bim $bim_file_path --out ${output_path}/prs_pipeline/LDpred2/prs_method"
+    if [[ -n "$afreq_file" ]]; then
+      LDpred2_args="$LDpred2_args --afreq $afreq_file"
+    fi
     echo "Running below
-    Rscript ${path_repo}/src/run_LDpred2.R \
-        --anc_bed ${study_sample}.bed \
-        --ss $summary_stats_file \
-        --bim $bim_file_path \
-        --out ${output_path}/prs_pipeline/LDpred2/prs_method
-        "
-    Rscript "${path_repo}/src/run_LDpred2.R" \
-        --anc_bed "${study_sample}.bed" \
-        --ss "$summary_stats_file" \
-        --bim "$bim_file_path" \
-        --out "${output_path}/prs_pipeline/LDpred2/prs_method"
+    Rscript ${path_repo}/src/run_LDpred2.R $LDpred2_args"
+    Rscript "${path_repo}/src/run_LDpred2.R" $LDpred2_args
     ) &
 fi
 
@@ -137,19 +133,14 @@ if [[ "$RUN_LASSOSUM2" == true ]]; then
     echo "[$(date)] Starting lassosum2 Pipeline..."
     mkdir -p "${output_path}/prs_pipeline/lassosum2"
     
+    lassosum2_args="--anc_bed ${study_sample}.bed --ss $summary_stats_file --bim $bim_file_path --out ${output_path}/prs_pipeline/lassosum2/prs_method"
+    if [[ -n "$afreq_file" ]]; then
+      lassosum2_args="$lassosum2_args --afreq $afreq_file"
+    fi
     echo "Running below
-    Rscript ${path_repo}/src/run_lassosum2.R \
-        --anc_bed ${study_sample}.bed \
-        --ss $summary_stats_file \
-        --bim $bim_file_path \
-        --out ${output_path}/prs_pipeline/lassosum2/prs_method
-        "
+    Rscript ${path_repo}/src/run_lassosum2.R $lassosum2_args"
 
-    Rscript "${path_repo}/src/run_lassosum2.R" \
-        --anc_bed "${study_sample}.bed" \
-        --ss "$summary_stats_file" \
-        --bim "$bim_file_path" \
-        --out "${output_path}/prs_pipeline/lassosum2/prs_method"
+    Rscript "${path_repo}/src/run_lassosum2.R" $lassosum2_args
     ) &
 fi
 
