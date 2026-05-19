@@ -6,6 +6,8 @@ output_path="/scratch.global/baron063/testing/singlePRS"
 path_repo="/scratch.global/baron063/testing/documentation_updates/prs_pipeline"
 skip_ss_generation=0
 n_total_gwas=300
+ncores=16
+# ld_cache_dir="/path/to/ld_cache"   # Cache per-chromosome LD matrices (avoids recomputing)
 
 # --- Parameters ---
 gwas_pca_eigenvec_file="/projects/standard/gdc/public/prs_methods/data/simulated_1000G/gwas/adjusted_1kgPCs.tsv"

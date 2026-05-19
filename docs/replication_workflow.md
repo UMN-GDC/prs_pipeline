@@ -151,6 +151,8 @@ output_path="/path/to/prs_results"
 path_repo="/path/to/prs_pipeline"               # cloned repository
 skip_ss_generation=0                             # 0 = run prepare_sumstats.R inside container
 n_total_gwas=31968
+ncores=16                                        # CPUs for parallel LD computation
+ld_cache_dir="/path/to/ld_cache"                 # Cache per-chromosome LD matrices (avoids recomputing)
 
 # Parameters
 gwas_pca_eigenvec_file="/path/to/pca.eigenvec"  # if using PCA covariates
@@ -173,6 +175,8 @@ RUN_PRSice2=true
 | `output_path` | yes | Directory for all PRS method outputs |
 | `path_repo` | yes | Path to the cloned `prs_pipeline` repository |
 | `afreq_file` | **required** | `.afreq` file from `plink2 --freq`. Required for LDpred2 and lassosum2 to bypass MAF computation from the genotype matrix |
+| `ncores` | no | Number of CPU cores for parallel LD computation (default: 16). Match to Slurm `--cpus-per-task` |
+| `ld_cache_dir` | no | Directory for cached per-chromosome LD matrices. If the cache exists, LD loading takes seconds instead of hours. Delete and re-run to regenerate if inputs change |
 | `skip_ss_generation` | no | Set to `0` (default) to let the pipeline run `prepare_sumstats.R` inside the container; set to `1` if you ran it manually |
 
 ### Method config

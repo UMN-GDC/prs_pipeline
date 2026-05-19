@@ -24,6 +24,8 @@ path_repo="/projects/standard/gdc/public/prs_methods/scripts/prs_pipeline"
 n_total_gwas=31968
 gwas_pca_eigenvec_file="/projects/standard/gdc/shared/abcdTest/04-globalAncestry/merged_dataset_pca.eigenvec"
 afreq_file=""
+ncores=16
+ld_cache_dir=""
 skip_ss_generation=0
 binary_flag=F # accepts T/F
 
@@ -118,9 +120,12 @@ if [[ "$RUN_LDPRED2" == true ]]; then
     echo "[$(date)] Starting LDpred2 Pipeline..."
     mkdir -p "${output_path}/prs_pipeline/LDpred2"
     echo "[DEBUG] afreq_file='${afreq_file:-}'" >&2
-    LDpred2_args="--anc_bed ${study_sample}.bed --ss $summary_stats_file --bim $bim_file_path --out ${output_path}/prs_pipeline/LDpred2/prs_method"
+    LDpred2_args="--anc_bed ${study_sample}.bed --ss $summary_stats_file --bim $bim_file_path --out ${output_path}/prs_pipeline/LDpred2/prs_method --ncores $ncores"
     if [[ -n "$afreq_file" ]]; then
       LDpred2_args="$LDpred2_args --afreq $afreq_file"
+    fi
+    if [[ -n "$ld_cache_dir" ]]; then
+      LDpred2_args="$LDpred2_args --ld-cache-dir $ld_cache_dir"
     fi
     echo "Running below
     Rscript ${path_repo}/src/run_LDpred2.R $LDpred2_args"
@@ -135,9 +140,12 @@ if [[ "$RUN_LASSOSUM2" == true ]]; then
     mkdir -p "${output_path}/prs_pipeline/lassosum2"
     echo "[DEBUG] afreq_file='${afreq_file:-}'" >&2
     
-    lassosum2_args="--anc_bed ${study_sample}.bed --ss $summary_stats_file --bim $bim_file_path --out ${output_path}/prs_pipeline/lassosum2/prs_method"
+    lassosum2_args="--anc_bed ${study_sample}.bed --ss $summary_stats_file --bim $bim_file_path --out ${output_path}/prs_pipeline/lassosum2/prs_method --ncores $ncores"
     if [[ -n "$afreq_file" ]]; then
       lassosum2_args="$lassosum2_args --afreq $afreq_file"
+    fi
+    if [[ -n "$ld_cache_dir" ]]; then
+      lassosum2_args="$lassosum2_args --ld-cache-dir $ld_cache_dir"
     fi
     echo "Running below
     Rscript ${path_repo}/src/run_lassosum2.R $lassosum2_args"

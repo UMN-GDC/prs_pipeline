@@ -19,6 +19,8 @@ parser$add_argument("--afreq", type="character", help="Path to PLINK2 .afreq fil
 parser$add_argument("--n_val", type="integer", default=49, help="Number of samples for validation")
 parser$add_argument("--seed", type="integer", default=1, help="Seed for validation/test split")
 parser$add_argument("--out", type="character", default="lassosum_out", help="Prefix for output files")
+parser$add_argument("--ncores", type="integer", default=1, help="Number of CPU cores (default: 1)")
+parser$add_argument("--ld-cache-dir", type="character", help="Directory to cache/reuse per-chromosome LD matrices")
 
 args <- parser$parse_args()
 
@@ -34,7 +36,7 @@ if (!is.null(args$anc_bed)) {
 obj.bigSNP <- snp_attach(args$rds)
 G      <- obj.bigSNP$genotypes
 y      <- obj.bigSNP$fam$affection
-NCORES <- 1
+NCORES <- args$ncores
 
 # --- 3. SUMMARY STATS PREPARATION (Adjusted for your new columns) ---
 # Use fread2 to handle the 9-column file
@@ -92,26 +94,57 @@ if (!is.null(args$afreq)) {
 }
 df_beta <- df_beta[maf > (1 / sqrt(nrow(G))) & !is.na(maf), ]
 
-# --- 4. LD MATRIX COMPUTATION (Original Loop) ---
+# --- 4. LD MATRIX COMPUTATION ---
+if (!is.null(args$ld_cache_dir)) {
+  dir.create(args$ld_cache_dir, showWarnings = FALSE, recursive = TRUE)
+}
+
 tmp <- tempfile(tmpdir = "temp_ld_lassosum")
 dir.create("temp_ld_lassosum", showWarnings = FALSE)
 POS2 <- obj.bigSNP$map$genetic.dist
 corr <- NULL
 
-for (chr in 1:22) {
-  ind.chr <- which(df_beta$chr == chr)
-  ind.chr2 <- df_beta$`_NUM_ID_`[ind.chr]
-  if (length(ind.chr2) < 2) next
-    
-  # Print progress for each chromosome
-  message(paste("Processing Chromosome:", chr, "| SNPs:", length(ind.chr2)))
-  
-  corr0 <- snp_cor(G, ind.col = ind.chr2, size = 3/1000, infos.pos = POS2[ind.chr2], ncores = NCORES)
-    
-  if (is.null(corr)) {
-    corr <- as_SFBM(corr0, tmp, compact = TRUE)
-  } else {
-    corr$add_columns(corr0, nrow(corr))
+CHRS <- 1:22
+
+# Check if all chromosomes are cached
+use_cache <- !is.null(args$ld_cache_dir) &&
+  all(vapply(CHRS, function(chr) {
+    file.exists(file.path(args$ld_cache_dir, paste0("chr", chr, "_corr.rds")))
+  }, logical(1)))
+
+if (use_cache) {
+  message("Loading pre-computed LD matrices from: ", args$ld_cache_dir)
+  for (chr in CHRS) {
+    ind.chr <- which(df_beta$chr == chr)
+    if (length(ind.chr) < 2) next
+    corr0 <- readRDS(file.path(args$ld_cache_dir, paste0("chr", chr, "_corr.rds")))
+    if (is.null(corr)) {
+      corr <- as_SFBM(corr0, tmp, compact = TRUE)
+    } else {
+      corr$add_columns(corr0, nrow(corr))
+    }
+  }
+} else {
+  message("Computing LD matrices from genotype data...")
+  for (chr in CHRS) {
+    ind.chr <- which(df_beta$chr == chr)
+    ind.chr2 <- df_beta$`_NUM_ID_`[ind.chr]
+    if (length(ind.chr2) < 2) next
+
+    message(paste("Processing Chromosome:", chr, "| SNPs:", length(ind.chr2)))
+
+    corr0 <- snp_cor(G, ind.col = ind.chr2, size = 3/1000, infos.pos = POS2[ind.chr2], ncores = NCORES)
+
+    if (!is.null(args$ld_cache_dir)) {
+      saveRDS(corr0, file.path(args$ld_cache_dir, paste0("chr", chr, "_corr.rds")))
+      message("  Cached chr", chr, " (", length(ind.chr2), " SNPs)")
+    }
+
+    if (is.null(corr)) {
+      corr <- as_SFBM(corr0, tmp, compact = TRUE)
+    } else {
+      corr$add_columns(corr0, nrow(corr))
+    }
   }
 }
 

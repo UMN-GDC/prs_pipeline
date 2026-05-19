@@ -23,6 +23,8 @@ parser$add_argument("--afreq", type="character", help="Path to PLINK2 .afreq fil
 parser$add_argument("--h2", type="numeric", default=0.4, help="Assumed heritability")
 parser$add_argument("--n_val", type="integer", default=49, help="Number of samples for validation")
 parser$add_argument("--out", type="character", default="ldpred2_out", help="Prefix for output files")
+parser$add_argument("--ncores", type="integer", default=1, help="Number of CPU cores (default: 1)")
+parser$add_argument("--ld-cache-dir", type="character", help="Directory to cache/reuse per-chromosome LD matrices")
 
 args <- parser$parse_args()
 
@@ -44,7 +46,7 @@ G      <- obj.bigSNP$genotypes
 CHR_id <- obj.bigSNP$map$chromosome
 POS_id <- obj.bigSNP$map$physical.pos
 y      <- obj.bigSNP$fam$affection
-NCORES <- 1
+NCORES <- args$ncores
 
 # Load BIM for alignment
 bim.file <- fread2(args$bim, select = c(1, 4, 5, 6))
@@ -131,27 +133,60 @@ message("   Variants passing threshold: ", sum(maf > maf_thr, na.rm=TRUE))
 
 # --- 5. COMPUTE LD MATRIX ---
 
+if (!is.null(args$ld_cache_dir)) {
+  dir.create(args$ld_cache_dir, showWarnings = FALSE, recursive = TRUE)
+}
+
 tmp <- tempfile(tmpdir = "temp_ld")
 dir.create("temp_ld", showWarnings = FALSE)
 corr <- NULL
 ld <- NULL
 
-for (chr in 1:22) {
-  ind.chr <- which(df_beta$chr == chr)
-  ind.chr2 <- df_beta$`_NUM_ID_`[ind.chr]
-  if (length(ind.chr2) < 2) next
+CHRS <- 1:22
 
-  # Print progress for each chromosome
-  message(paste("Processing Chromosome:", chr, "| SNPs:", length(ind.chr2)))
-  
-  corr0 <- snp_cor(G, ind.col = ind.chr2, size = 3/1000, infos.pos = POS2[ind.chr2], ncores = NCORES)
+# Check if all chromosomes are cached
+use_cache <- !is.null(args$ld_cache_dir) &&
+  all(vapply(CHRS, function(chr) {
+    file.exists(file.path(args$ld_cache_dir, paste0("chr", chr, "_corr.rds")))
+  }, logical(1)))
 
-  if (is.null(corr)) {
-    ld <- Matrix::colSums(corr0^2)
-    corr <- as_SFBM(corr0, tmp, compact = TRUE)
-  } else {
-    ld <- c(ld, Matrix::colSums(corr0^2))
-    corr$add_columns(corr0, nrow(corr))
+if (use_cache) {
+  message("Loading pre-computed LD matrices from: ", args$ld_cache_dir)
+  for (chr in CHRS) {
+    ind.chr <- which(df_beta$chr == chr)
+    if (length(ind.chr) < 2) next
+    corr0 <- readRDS(file.path(args$ld_cache_dir, paste0("chr", chr, "_corr.rds")))
+    if (is.null(corr)) {
+      ld <- Matrix::colSums(corr0^2)
+      corr <- as_SFBM(corr0, tmp, compact = TRUE)
+    } else {
+      ld <- c(ld, Matrix::colSums(corr0^2))
+      corr$add_columns(corr0, nrow(corr))
+    }
+  }
+} else {
+  message("Computing LD matrices from genotype data...")
+  for (chr in CHRS) {
+    ind.chr <- which(df_beta$chr == chr)
+    ind.chr2 <- df_beta$`_NUM_ID_`[ind.chr]
+    if (length(ind.chr2) < 2) next
+
+    message(paste("Processing Chromosome:", chr, "| SNPs:", length(ind.chr2)))
+
+    corr0 <- snp_cor(G, ind.col = ind.chr2, size = 3/1000, infos.pos = POS2[ind.chr2], ncores = NCORES)
+
+    if (!is.null(args$ld_cache_dir)) {
+      saveRDS(corr0, file.path(args$ld_cache_dir, paste0("chr", chr, "_corr.rds")))
+      message("  Cached chr", chr, " (", length(ind.chr2), " SNPs)")
+    }
+
+    if (is.null(corr)) {
+      ld <- Matrix::colSums(corr0^2)
+      corr <- as_SFBM(corr0, tmp, compact = TRUE)
+    } else {
+      ld <- c(ld, Matrix::colSums(corr0^2))
+      corr$add_columns(corr0, nrow(corr))
+    }
   }
 }
 
