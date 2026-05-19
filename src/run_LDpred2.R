@@ -97,6 +97,7 @@ sumstats <- sumstats %>%
   inner_join(bim.file, by = c("chr", "pos")) %>%
   mutate(a0 = ifelse(a1 == bim.a1, bim.a0, bim.a1)) %>%
   select(chr, pos, a1, a0, beta, beta_se, n_eff)
+message("SNPs matching between Summary Stats and BIM: ", nrow(sumstats))
 
 # --- 4. PREPARE FOR LDPRED2 ---
 
@@ -118,7 +119,15 @@ if (!is.null(args$afreq)) {
 }
 
 maf_thr <- 1 / sqrt(length(ind.row))
+maf_thr <- 0.01 # Smaller numbers to be more permissive
 df_beta <- df_beta[maf > maf_thr & !is.na(maf), ]
+
+# Diagnostic metrics
+message("--- MAF Filtering Diagnostics ---")
+message("   Total variants matched: ", length(maf))
+message("   Variants with NA MAF (missing data): ", sum(is.na(maf)))
+message("   Variants failing threshold (<= ", round(maf_thr, 4), "): ", sum(maf <= maf_thr, na.rm=TRUE))
+message("   Variants passing threshold: ", sum(maf > maf_thr, na.rm=TRUE))
 
 # --- 5. COMPUTE LD MATRIX ---
 
