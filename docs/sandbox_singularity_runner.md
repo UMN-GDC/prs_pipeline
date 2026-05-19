@@ -57,6 +57,7 @@ study_sample="/path/to/genotype_prefix"
 output_path="/path/to/results"
 path_repo="/path/to/prs_pipeline"
 gwas_pca_eigenvec_file="/path/to/pca.eigenvec"
+afreq_file="/path/to/sample.afreq"
 ```
 
 | Variable | Description |
@@ -67,6 +68,7 @@ gwas_pca_eigenvec_file="/path/to/pca.eigenvec"
 | `output_path` | Directory for all results |
 | `path_repo` | Path to the cloned `prs_pipeline` repository |
 | `gwas_pca_eigenvec_file` | PCA eigenvector file for covariates |
+| `afreq_file` | Optional: PLINK2 `.afreq` file; bypasses MAF computation from genotype matrix for LDpred2 and lassosum2 |
 
 ## Auto-Bind Mount Detection
 
