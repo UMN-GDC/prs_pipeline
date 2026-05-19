@@ -40,10 +40,19 @@ if (is.null(args$rds)) stop("Error: You must provide either --anc_bed or --rds."
 
 obj.bigSNP <- snp_attach(args$rds)
 G      <- obj.bigSNP$genotypes
+
+NCORES <- 1
+# NEW: Check for missing values and impute them on the fly
+if (any(is.na(G[]))) {
+  message("Warning: Target genotype matrix contains missing values (NAs).")
+  message("Imputing missing calls using the most frequent allele (mode)...")
+  G <- snp_fastImputeSimple(G, method = "mode", ncores = NCORES)
+}
+
 CHR_id <- obj.bigSNP$map$chromosome
 POS_id <- obj.bigSNP$map$physical.pos
 y      <- obj.bigSNP$fam$affection
-NCORES <- 1
+
 
 # Load BIM for alignment
 bim.file <- fread2(args$bim, select = c(1, 4, 5, 6))
@@ -91,22 +100,51 @@ if (length(missing) > 0) {
   stop("Missing required columns in summary stats: ", paste(missing, collapse = ", "))
 }
 
-# Merge with BIM to get a0 (reference allele)
+# Keep rsid in the select statement!
 sumstats <- sumstats %>%
   inner_join(bim.file, by = c("chr", "pos")) %>%
   mutate(a0 = ifelse(a1 == bim.a1, bim.a0, bim.a1)) %>%
-  select(chr, pos, a1, a0, beta, beta_se, n_eff)
+  select(chr, rsid, pos, a1, a0, beta, beta_se, n_eff)
+
+# DIAGNOSTIC: Check if the data actually matched
+message("SNPs matching between Summary Stats and BIM: ", nrow(sumstats))
+if (nrow(sumstats) == 0) {
+  stop("CRITICAL ERROR: 0 SNPs matched! Check your chromosome column formatting (e.g., '01' vs '1').")
+}
+
+message("SNPs matching between Summary Stats and BIM: ", nrow(sumstats))
 
 # --- 4. PREPARE FOR LDPRED2 ---
-
 map <- setNames(obj.bigSNP$map[-3], c("chr", "rsid", "pos", "a1", "a0"))
 df_beta <- snp_match(sumstats, map, join_by_pos = TRUE)
 
-POS2 <- obj.bigSNP$map$genetic.dist
+# Fallback window selection: Use physical position if genetic distance map is missing (all zeros)
+if (all(obj.bigSNP$map$genetic.dist == 0)) {
+  message("Genetic distance is all zeros. Falling back to physical positions (kb) with 500kb window.")
+  POS2 <- obj.bigSNP$map$physical.pos / 1000
+  ld_window_size <- 500
+} else {
+  POS2 <- obj.bigSNP$map$genetic.dist
+  ld_window_size <- 3/1000
+}
+
 ind.row <- rows_along(G)
 maf <- snp_MAF(G, ind.row = ind.row, ind.col = df_beta$`_NUM_ID_`, ncores = NCORES)
-maf_thr <- 1 / sqrt(length(ind.row))
-df_beta <- df_beta[maf > maf_thr, ]
+maf_thr <- 0.0001 # Adjust this to smaller numbers to be more permissive
+
+# Diagnostic metrics
+message("--- MAF Filtering Diagnostics ---")
+message("  Total variants matched: ", length(maf))
+message("  Variants with NA MAF (missing data): ", sum(is.na(maf)))
+message("  Variants failing threshold (<= ", round(maf_thr, 4), "): ", sum(maf <= maf_thr, na.rm=TRUE))
+message("  Variants passing threshold: ", sum(maf > maf_thr, na.rm=TRUE))
+
+# CRITICAL FIX 1: Wrap in which() to prevent generating trailing NA rows
+df_beta <- df_beta[which(maf > maf_thr), ]
+
+if (nrow(df_beta) == 0) {
+  stop("CRITICAL ERROR: 0 variants passed the MAF threshold filter.")
+}
 
 # --- 5. COMPUTE LD MATRIX ---
 
@@ -115,16 +153,23 @@ dir.create("temp_ld", showWarnings = FALSE)
 corr <- NULL
 ld <- NULL
 
+kept_df_indices <- c()
+
 for (chr in 1:22) {
   ind.chr <- which(df_beta$chr == chr)
   ind.chr2 <- df_beta$`_NUM_ID_`[ind.chr]
-  if (length(ind.chr2) < 2) next
-
-  # Print progress for each chromosome
+  
+  if (length(ind.chr2) < 2) {
+    if (length(ind.chr2) == 1) {
+      message(paste("Skipping Chromosome:", chr, "| Not enough SNPs (1)"))
+    }
+    next
+  }
+  
   message(paste("Processing Chromosome:", chr, "| SNPs:", length(ind.chr2)))
   
-  corr0 <- snp_cor(G, ind.col = ind.chr2, size = 3/1000, infos.pos = POS2[ind.chr2], ncores = NCORES)
-
+  corr0 <- snp_cor(G, ind.col = ind.chr2, size = ld_window_size, infos.pos = POS2[ind.chr2], ncores = NCORES)
+  
   if (is.null(corr)) {
     ld <- Matrix::colSums(corr0^2)
     corr <- as_SFBM(corr0, tmp, compact = TRUE)
@@ -132,7 +177,15 @@ for (chr in 1:22) {
     ld <- c(ld, Matrix::colSums(corr0^2))
     corr$add_columns(corr0, nrow(corr))
   }
+  
+  kept_df_indices <- c(kept_df_indices, ind.chr)
 }
+
+# CRITICAL FIX 3: Subset df_beta down to match the exact dimensions of the compiled corr matrix
+if (length(kept_df_indices) == 0) {
+  stop("CRITICAL ERROR: No chromosomes contained enough valid SNPs to build an LD Matrix.")
+}
+df_beta <- df_beta[kept_df_indices, ]
 
 # --- 6. RUN MODELS ---
 
@@ -172,15 +225,13 @@ r2_grid <- pcor(pred_grid_best, y[ind.test], NULL)
 
 # --- 7. OUTPUT RESULTS ---
 
-# 1. Calculate scores for EVERYONE (not just the test set)
-# We already have pred_grid for everyone, we just need to pick the best column
+# 1. Calculate scores for EVERYONE 
 prs_grid_all <- pred_grid[, best_grid_idx]
 
-# Recalculate Infinitesimal for everyone (removing the ind.row restriction)
+# Recalculate Infinitesimal for everyone 
 prs_inf_all <- big_prodVec(G, beta_inf, ind.col = df_beta[["_NUM_ID_"]])
 
-# 2. Create the individual-level table
-# obj.bigSNP$fam contains family.ID (FID) and sample.ID (IID)
+# 2. Create individual table
 prs_report <- data.frame(
   FID      = obj.bigSNP$fam$family.ID,
   IID      = obj.bigSNP$fam$sample.ID,
@@ -188,10 +239,10 @@ prs_report <- data.frame(
   PRS_grid = prs_grid_all
 )
 
-# 3. Save the individual scores
+# 3. Save individual scores
 fwrite(prs_report, paste0(args$out, "_individual_scores.txt"), sep = "\t", row.names = FALSE)
 
-# 4. Save the performance summary
+# 4. Save performance summary
 results <- data.frame(
   Method = c("Infinitesimal", "Grid"),
   R2 = c(r2_inf^2, r2_grid^2)
