@@ -18,6 +18,7 @@ parser$add_argument("--bim", type="character", required=TRUE, help="Path to the 
 # Both are now optional; logic below handles various scenarios
 parser$add_argument("--ss", type="character", required=TRUE, help="Path to summary statistics")
 parser$add_argument("--beta_se", type="character", help="Optional: separate table with beta_se/SE")
+parser$add_argument("--afreq", type="character", help="Path to PLINK2 .afreq file (bypasses snp_MAF on genotype matrix)")
 
 parser$add_argument("--h2", type="numeric", default=0.4, help="Assumed heritability")
 parser$add_argument("--n_val", type="integer", default=49, help="Number of samples for validation")
@@ -104,9 +105,20 @@ df_beta <- snp_match(sumstats, map, join_by_pos = TRUE)
 
 POS2 <- obj.bigSNP$map$genetic.dist
 ind.row <- rows_along(G)
-maf <- snp_MAF(G, ind.row = ind.row, ind.col = df_beta$`_NUM_ID_`, ncores = NCORES)
+
+if (!is.null(args$afreq)) {
+  message("Reading allele frequencies from: ", args$afreq)
+  afreq <- fread2(args$afreq)
+  m <- match(df_beta$rsid, afreq$ID)
+  maf <- pmin(afreq$ALT_FREQS[m], 1 - afreq$ALT_FREQS[m])
+  maf[is.na(m)] <- NA
+} else {
+  message("Computing MAF from genotype matrix...")
+  maf <- snp_MAF(G, ind.row = ind.row, ind.col = df_beta$`_NUM_ID_`, ncores = NCORES)
+}
+
 maf_thr <- 1 / sqrt(length(ind.row))
-df_beta <- df_beta[maf > maf_thr, ]
+df_beta <- df_beta[maf > maf_thr & !is.na(maf), ]
 
 # --- 5. COMPUTE LD MATRIX ---
 

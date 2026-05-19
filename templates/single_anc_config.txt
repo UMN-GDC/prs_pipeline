@@ -9,6 +9,7 @@ n_total_gwas=300
 
 # --- Parameters ---
 gwas_pca_eigenvec_file="/projects/standard/gdc/public/prs_methods/data/simulated_1000G/gwas/adjusted_1kgPCs.tsv"
+# afreq_file="/path/to/sample.afreq"  # Optional: bypasses MAF computation from genotype matrix for LDpred2 and lassosum2
 phenotype_info_file="/projects/standard/gdc/public/prs_methods/data/simulated_1000G/prs_pipeline/viprs/study_sample_pheno.txt"
 
 RUN_CT=true

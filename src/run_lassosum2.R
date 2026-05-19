@@ -15,6 +15,7 @@ parser$add_argument("--rds", type="character", help="Path to the .rds file")
 parser$add_argument("--ss", type="character", required=TRUE, help="Path to GWAS summary statistics")
 parser$add_argument("--bim", type="character", required=TRUE, help="Path to the .bim file")
 parser$add_argument("--beta_se", type="character", help="Optional: separate table with beta_se/SE")
+parser$add_argument("--afreq", type="character", help="Path to PLINK2 .afreq file (bypasses snp_MAF on genotype matrix)")
 parser$add_argument("--n_val", type="integer", default=49, help="Number of samples for validation")
 parser$add_argument("--seed", type="integer", default=1, help="Seed for validation/test split")
 parser$add_argument("--out", type="character", default="lassosum_out", help="Prefix for output files")
@@ -79,8 +80,17 @@ map <- setNames(obj.bigSNP$map[-3], c("chr", "rsid", "pos", "a1", "a0"))
 df_beta <- snp_match(sumstats, map, join_by_pos = TRUE)
 
 # MAF Filtering
-maf <- snp_MAF(G, ind.col = df_beta$`_NUM_ID_`, ncores = NCORES)
-df_beta <- df_beta[maf > (1 / sqrt(nrow(G))), ]
+if (!is.null(args$afreq)) {
+  message("Reading allele frequencies from: ", args$afreq)
+  afreq <- fread2(args$afreq)
+  m <- match(df_beta$rsid, afreq$ID)
+  maf <- pmin(afreq$ALT_FREQS[m], 1 - afreq$ALT_FREQS[m])
+  maf[is.na(m)] <- NA
+} else {
+  message("Computing MAF from genotype matrix...")
+  maf <- snp_MAF(G, ind.col = df_beta$`_NUM_ID_`, ncores = NCORES)
+}
+df_beta <- df_beta[maf > (1 / sqrt(nrow(G))) & !is.na(maf), ]
 
 # --- 4. LD MATRIX COMPUTATION (Original Loop) ---
 tmp <- tempfile(tmpdir = "temp_ld_lassosum")
