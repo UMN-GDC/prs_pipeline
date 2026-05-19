@@ -119,7 +119,7 @@ if (!is.null(args$afreq)) {
 }
 
 maf_thr <- 1 / sqrt(length(ind.row))
-maf_thr <- 0.01 # Smaller numbers to be more permissive
+maf_thr <- 0.1 # Smaller numbers to be more permissive
 df_beta <- df_beta[maf > maf_thr & !is.na(maf), ]
 
 # Diagnostic metrics
