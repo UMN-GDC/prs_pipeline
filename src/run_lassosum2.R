@@ -97,7 +97,10 @@ if (!is.null(args$afreq)) {
   message("Computing MAF from genotype matrix...")
   maf <- snp_MAF(G, ind.col = df_beta$`_NUM_ID_`, ncores = NCORES)
 }
-df_beta <- df_beta[maf > (1 / sqrt(nrow(G))) & !is.na(maf), ]
+
+maf_thr <- 1 / sqrt(nrow(G))
+maf_thr <- 0.1 # Smaller numbers to be more permissive
+df_beta <- df_beta[maf > maf_thr & !is.na(maf), ]
 
 # --- 4. LD MATRIX COMPUTATION ---
 if (!is.null(args$ld_cache_dir)) {
