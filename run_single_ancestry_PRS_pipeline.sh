@@ -117,6 +117,7 @@ if [[ "$RUN_LDPRED2" == true ]]; then
     (
     echo "[$(date)] Starting LDpred2 Pipeline..."
     mkdir -p "${output_path}/prs_pipeline/LDpred2"
+    echo "[DEBUG] afreq_file='${afreq_file:-}'" >&2
     LDpred2_args="--anc_bed ${study_sample}.bed --ss $summary_stats_file --bim $bim_file_path --out ${output_path}/prs_pipeline/LDpred2/prs_method"
     if [[ -n "$afreq_file" ]]; then
       LDpred2_args="$LDpred2_args --afreq $afreq_file"
@@ -132,6 +133,7 @@ if [[ "$RUN_LASSOSUM2" == true ]]; then
     (
     echo "[$(date)] Starting lassosum2 Pipeline..."
     mkdir -p "${output_path}/prs_pipeline/lassosum2"
+    echo "[DEBUG] afreq_file='${afreq_file:-}'" >&2
     
     lassosum2_args="--anc_bed ${study_sample}.bed --ss $summary_stats_file --bim $bim_file_path --out ${output_path}/prs_pipeline/lassosum2/prs_method"
     if [[ -n "$afreq_file" ]]; then

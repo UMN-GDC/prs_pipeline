@@ -82,7 +82,8 @@ while [[ $# -gt 0 ]]; do
         --C|-C) 
             CONFIG_FILE=$(realpath "$2"); 
             source ${CONFIG_FILE}
-            PIPELINE_ARGS+="-C $2 "
+            echo "[DEBUG] Config defines afreq_file='${afreq_file:-}'"
+            PIPELINE_ARGS+="-C ${CONFIG_FILE} "
             shift 2 ;;
         --) 
             shift; PIPELINE_ARGS+="$* "; break ;;
