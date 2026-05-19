@@ -1,5 +1,10 @@
 #!/usr/bin/env Rscript
 
+# Control BLAS threads to avoid nested parallelism with bigstatsr's multicore
+Sys.setenv(OMP_NUM_THREADS = "1")
+Sys.setenv(OPENBLAS_NUM_THREADS = "1")
+Sys.setenv(MKL_NUM_THREADS = "1")
+
 library(argparse)
 library(bigsnpr)
 library(ggplot2)
