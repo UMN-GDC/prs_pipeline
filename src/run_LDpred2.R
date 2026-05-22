@@ -126,15 +126,22 @@ if (!is.null(args$afreq)) {
 }
 
 maf_thr <- 1 / sqrt(length(ind.row))
-maf_thr <- 0.1 # Smaller numbers to be more permissive
-df_beta <- df_beta[maf > maf_thr & !is.na(maf), ]
-
-# Diagnostic metrics
 message("--- MAF Filtering Diagnostics ---")
 message("   Total variants matched: ", length(maf))
 message("   Variants with NA MAF (missing data): ", sum(is.na(maf)))
 message("   Variants failing threshold (<= ", round(maf_thr, 4), "): ", sum(maf <= maf_thr, na.rm=TRUE))
 message("   Variants passing threshold: ", sum(maf > maf_thr, na.rm=TRUE))
+
+df_beta <- df_beta[maf > maf_thr & !is.na(maf), ]
+
+# Restrict to autosomes 1:22
+CHRS <- 1:22
+df_beta <- df_beta[df_beta$chr %in% CHRS, ]
+message("   Autosomes 1-22 after MAF filter: ", nrow(df_beta))
+
+if (nrow(df_beta) == 0) {
+  stop("No variants remain after MAF + autosome filtering.")
+}
 
 # --- 5. COMPUTE LD MATRIX ---
 
@@ -147,7 +154,8 @@ dir.create("temp_ld", showWarnings = FALSE)
 corr <- NULL
 ld <- NULL
 
-CHRS <- 1:22
+# Track which rows of df_beta end up in corr
+keep_idx <- logical(nrow(df_beta))
 
 # Check if all chromosomes are cached
 use_cache <- !is.null(args$ld_cache_dir) &&
@@ -161,6 +169,7 @@ if (use_cache) {
     ind.chr <- which(df_beta$chr == chr)
     if (length(ind.chr) < 2) next
     corr0 <- readRDS(file.path(args$ld_cache_dir, paste0("chr", chr, "_corr.rds")))
+    keep_idx[ind.chr] <- TRUE
     if (is.null(corr)) {
       ld <- Matrix::colSums(corr0^2)
       corr <- as_SFBM(corr0, tmp, compact = TRUE)
@@ -177,6 +186,7 @@ if (use_cache) {
     if (length(ind.chr2) < 2) next
 
     message(paste("Processing Chromosome:", chr, "| SNPs:", length(ind.chr2)))
+    keep_idx[ind.chr] <- TRUE
 
     corr0 <- snp_cor(G, ind.col = ind.chr2, size = 3/1000, infos.pos = POS2[ind.chr2], ncores = NCORES)
 
@@ -195,10 +205,22 @@ if (use_cache) {
   }
 }
 
+# Align df_beta with corr (exclude variants not added, e.g. chr with < 2 SNPs)
+df_beta <- df_beta[keep_idx, ]
+message("Variants in LD matrix: ", nrow(df_beta))
+
+if (nrow(df_beta) != ncol(corr)) {
+  stop("Mismatch between df_beta rows (", nrow(df_beta),
+       ") and corr cols (", ncol(corr), ") after LD construction.")
+}
+
 # --- 6. RUN MODELS ---
 
 # Split validation/test sets
-ind.val  <- sample(nrow(G), args$n_val)
+n_total <- nrow(G)
+n_val <- min(args$n_val, floor(n_total / 3))
+if (n_val < 2) stop("Too few samples (", n_total, ") for validation split.")
+ind.val  <- sample(n_total, n_val)
 ind.test <- setdiff(rows_along(G), ind.val)
 
 # Infinitesimal Model
@@ -228,14 +250,20 @@ ggsave(paste0(args$out, "_grid_plot.png"), p)
 
 # Best Grid Prediction
 best_grid_idx <- which.max(params$score)
-pred_grid_best <- big_prodVec(G, beta_grid[, best_grid_idx], ind.row = ind.test, ind.col = df_beta[["_NUM_ID_"]])
-r2_grid <- pcor(pred_grid_best, y[ind.test], NULL)
+if (length(best_grid_idx) == 0 || is.na(best_grid_idx) || all(is.na(params$score))) {
+  message("WARNING: All grid model scores are NA. Skipping grid PRS.")
+  pred_grid_best <- rep(NA_real_, length(ind.test))
+  r2_grid <- NA_real_
+  prs_grid_all <- rep(NA_real_, n_total)
+} else {
+  pred_grid_best <- big_prodVec(G, beta_grid[, best_grid_idx], ind.row = ind.test, ind.col = df_beta[["_NUM_ID_"]])
+  r2_grid <- pcor(pred_grid_best, y[ind.test], NULL)
+
+  # Calculate scores for EVERYONE (not just the test set)
+  prs_grid_all <- pred_grid[, best_grid_idx]
+}
 
 # --- 7. OUTPUT RESULTS ---
-
-# 1. Calculate scores for EVERYONE (not just the test set)
-# We already have pred_grid for everyone, we just need to pick the best column
-prs_grid_all <- pred_grid[, best_grid_idx]
 
 # Recalculate Infinitesimal for everyone (removing the ind.row restriction)
 prs_inf_all <- big_prodVec(G, beta_inf, ind.col = df_beta[["_NUM_ID_"]])
