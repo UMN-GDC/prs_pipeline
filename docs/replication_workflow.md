@@ -62,7 +62,7 @@ At this point the cleaned file is ready. You do **not** run `prepare_sumstats.R`
 
 ## 2. Phenotype File and Gender File
 
-These two files must be prepared **before** running `genomic_preps.sh`. Both are plain-text, tab-separated, **without a header row**, with the IID duplicated in columns 1 and 2 (FID and IID are the same — there are no family groupings).
+These two files must be prepared **before** running `genomic_preps.sh`. Both are plain-text, tab-separated, **without a header row**, with the IID duplicated in columns 1 and 2 (FID and IID are the same — there are no family groupings). **Ensure there are no quotes in the file for FID and IID**
 
 ### Gender file (`ready_sex.txt`)
 
@@ -105,6 +105,14 @@ The `genomic_preps.sh` script runs three sequential PLINK steps inside an Apptai
 1. **Update phenotype and sex** — attaches the phenotype and gender files to the raw PLINK dataset
 2. **Split by ancestry + QC** — extracts EUR and AFR subsets, filters variants with `--geno 0.05` and samples with `--mind 0.05`
 3. **Calculate allele frequencies** — runs `plink2 --freq` on each ancestry subset, producing `.afreq` files. These are **required** (not optional) for LDpred2 and lassosum2 to avoid MAF computation from the genotype matrix, which fails on data with high missingness.
+
+### Download Singularity Image Instructions
+
+This singularity image is needed to run genomic_preps.sh.
+
+``` bash
+apptainer pull oras://ghcr.io/mainsqu33ze/gdcgenomicsqc/prsv2:latest
+```
 
 ### Before running
 
