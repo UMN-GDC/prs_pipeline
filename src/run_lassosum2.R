@@ -141,6 +141,11 @@ if (use_cache) {
     ind.chr <- which(df_beta$chr == chr)
     if (length(ind.chr) < 2) next
     corr0 <- readRDS(file.path(args$ld_cache_dir, paste0("chr", chr, "_corr.rds")))
+    if (any(is.na(corr0))) {
+      message("  Chr", chr, ": zeroing ", sum(is.na(corr0)), " NA correlations (cached)")
+      corr0[is.na(corr0)] <- 0
+      diag(corr0) <- 1
+    }
     keep_idx[ind.chr] <- TRUE
     if (is.null(corr)) {
       corr <- as_SFBM(corr0, tmp, compact = TRUE)
@@ -155,10 +160,29 @@ if (use_cache) {
     ind.chr2 <- df_beta$`_NUM_ID_`[ind.chr]
     if (length(ind.chr2) < 2) next
 
+    # Remove zero-variance SNPs that cause NA correlations
+    sc <- big_scale(G, ind.col = ind.chr2)
+    zero_var <- which(sc$sd == 0 | is.na(sc$sd))
+    if (length(zero_var) > 0) {
+      bad_nmid <- ind.chr2[zero_var]
+      bad_rows <- which(df_beta$`_NUM_ID_`[ind.chr] %in% bad_nmid)
+      ind.chr <- ind.chr[-bad_rows]
+      ind.chr2 <- ind.chr2[-zero_var]
+      message("  Chr", chr, ": removed ", length(zero_var), " zero-variance SNPs")
+    }
+    if (length(ind.chr2) < 2) next
+
     message(paste("Processing Chromosome:", chr, "| SNPs:", length(ind.chr2)))
     keep_idx[ind.chr] <- TRUE
 
     corr0 <- snp_cor(G, ind.col = ind.chr2, size = 3/1000, infos.pos = POS2[ind.chr2], ncores = NCORES)
+
+    # Fix any remaining NA/NaN in correlation matrix
+    if (any(is.na(corr0))) {
+      message("  Chr", chr, ": zeroing ", sum(is.na(corr0)), " NA correlations")
+      corr0[is.na(corr0)] <- 0
+      diag(corr0) <- 1
+    }
 
     if (!is.null(args$ld_cache_dir)) {
       saveRDS(corr0, file.path(args$ld_cache_dir, paste0("chr", chr, "_corr.rds")))
