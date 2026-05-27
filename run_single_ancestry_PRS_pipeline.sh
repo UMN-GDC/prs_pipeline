@@ -26,6 +26,7 @@ gwas_pca_eigenvec_file="/projects/standard/gdc/shared/abcdTest/04-globalAncestry
 afreq_file=""
 ncores=16
 ld_cache_dir=""
+ld_matrix_dir=""
 skip_ss_generation=0
 binary_flag=F # accepts T/F
 
@@ -93,6 +94,21 @@ fi
 
 awk '{print $1, $2, $6}' OFS="\t" ${study_sample}.fam > ${output_path}/gwas/study_sample_pheno.txt
 
+# --- LD MATRIX GENERATION (prep step for LDpred2 / lassosum2) ---
+if [[ -n "$ld_matrix_dir" && ( "$RUN_LDPRED2" == true || "$RUN_LASSOSUM2" == true ) ]]; then
+  mkdir -p "$ld_matrix_dir"
+  if [[ ! -f "${ld_matrix_dir}/map.rds" ]]; then
+    echo "[$(date)] Generating pre-computed LD matrix..."
+    Rscript "${path_repo}/src/generate_ld_matrix.R" \
+      --anc_bed "${study_sample}.bed" \
+      --out "$ld_matrix_dir" \
+      --ncores "$ncores"
+    echo "[$(date)] LD matrix saved to $ld_matrix_dir"
+  else
+    echo "[$(date)] Using existing LD matrix from $ld_matrix_dir"
+  fi
+fi
+
 # --- METHOD 1: Clumping + Thresholding (C+T) ---
 if [[ "$RUN_CT" == true ]]; then
    ( 
@@ -127,6 +143,9 @@ if [[ "$RUN_LDPRED2" == true ]]; then
     if [[ -n "$ld_cache_dir" ]]; then
       LDpred2_args="$LDpred2_args --ld-cache-dir $ld_cache_dir"
     fi
+    if [[ -n "$ld_matrix_dir" ]]; then
+      LDpred2_args="$LDpred2_args --ld-matrix-dir $ld_matrix_dir"
+    fi
     echo "Running below
     Rscript ${path_repo}/src/run_LDpred2.R $LDpred2_args"
     Rscript "${path_repo}/src/run_LDpred2.R" $LDpred2_args
@@ -146,6 +165,9 @@ if [[ "$RUN_LASSOSUM2" == true ]]; then
     fi
     if [[ -n "$ld_cache_dir" ]]; then
       lassosum2_args="$lassosum2_args --ld-cache-dir $ld_cache_dir"
+    fi
+    if [[ -n "$ld_matrix_dir" ]]; then
+      lassosum2_args="$lassosum2_args --ld-matrix-dir $ld_matrix_dir"
     fi
     echo "Running below
     Rscript ${path_repo}/src/run_lassosum2.R $lassosum2_args"

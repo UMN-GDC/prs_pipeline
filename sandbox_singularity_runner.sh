@@ -62,7 +62,7 @@ auto_bind() {
     if [[ -f "${CONFIG_FILE:-}" ]]; then
         while IFS= read -r line; do
             case "$line" in
-                summary_stats_file=*|bim_file_path=*|study_sample=*|output_path=*|path_repo=*|gwas_pca_eigenvec_file=*|afreq_file=*|ld_cache_dir=*)
+                summary_stats_file=*|bim_file_path=*|study_sample=*|output_path=*|path_repo=*|gwas_pca_eigenvec_file=*|afreq_file=*|ld_cache_dir=*|ld_matrix_dir=*)
                     local path="${line#*=}"
                     path="${path%\"}"
                     path="${path#\"}"

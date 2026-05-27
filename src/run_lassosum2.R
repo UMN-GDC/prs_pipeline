@@ -26,6 +26,7 @@ parser$add_argument("--seed", type="integer", default=1, help="Seed for validati
 parser$add_argument("--out", type="character", default="lassosum_out", help="Prefix for output files")
 parser$add_argument("--ncores", type="integer", default=1, help="Number of CPU cores (default: 1)")
 parser$add_argument("--ld-cache-dir", type="character", help="Directory to cache/reuse per-chromosome LD matrices")
+parser$add_argument("--ld-matrix-dir", type="character", help="Directory with pre-computed LD matrix (from generate_ld_matrix.R)")
 
 args <- parser$parse_args()
 
@@ -83,7 +84,12 @@ sumstats <- sumstats %>%
   mutate(a0 = ifelse(a1 == bim.a1, bim.a0, bim.a1)) %>%
   select(chr, pos, a1, a0, beta, beta_se, n_eff)
 
-map <- setNames(obj.bigSNP$map[-3], c("chr", "rsid", "pos", "a1", "a0"))
+if (!is.null(args$ld_matrix_dir)) {
+  message("Aligning sumstats with pre-computed LD matrix map...")
+  map <- readRDS(file.path(args$ld_matrix_dir, "map.rds"))
+} else {
+  map <- setNames(obj.bigSNP$map[-3], c("chr", "rsid", "pos", "a1", "a0"))
+}
 df_beta <- snp_match(sumstats, map, join_by_pos = TRUE)
 
 # MAF Filtering
@@ -116,37 +122,44 @@ if (nrow(df_beta) == 0) {
   stop("No variants remain after MAF + autosome filtering.")
 }
 
-# --- 4. LD MATRIX COMPUTATION ---
+# --- 4. LD MATRIX ---
 if (!is.null(args$ld_cache_dir)) {
   dir.create(args$ld_cache_dir, showWarnings = FALSE, recursive = TRUE)
 }
 
 tmp <- tempfile(tmpdir = "temp_ld_lassosum")
 dir.create("temp_ld_lassosum", showWarnings = FALSE)
-POS2 <- obj.bigSNP$map$genetic.dist
 corr <- NULL
-
-# Track which rows of df_beta end up in corr
 keep_idx <- logical(nrow(df_beta))
 
-# Check if all chromosomes are cached
-use_cache <- !is.null(args$ld_cache_dir) &&
-  all(vapply(CHRS, function(chr) {
-    file.exists(file.path(args$ld_cache_dir, paste0("chr", chr, "_corr.rds")))
-  }, logical(1)))
+if (!is.null(args$ld_matrix_dir)) {
+  # Load pre-computed LD matrix (sumstats-independent)
+  message("Loading pre-computed LD matrix from: ", args$ld_matrix_dir)
+  ld_map <- readRDS(file.path(args$ld_matrix_dir, "map.rds"))
 
-if (use_cache) {
-  message("Loading pre-computed LD matrices from: ", args$ld_cache_dir)
   for (chr in CHRS) {
     ind.chr <- which(df_beta$chr == chr)
     if (length(ind.chr) < 2) next
-    corr0 <- readRDS(file.path(args$ld_cache_dir, paste0("chr", chr, "_corr.rds")))
+
+    map_chr_idx <- which(ld_map$chr == chr)
+    local_idx <- match(df_beta$`_NUM_ID_`[ind.chr], map_chr_idx)
+
+    bad <- which(is.na(local_idx))
+    if (length(bad) > 0) {
+      local_idx <- local_idx[-bad]
+      ind.chr <- ind.chr[-bad]
+    }
+    if (length(local_idx) < 2) next
+
+    keep_idx[ind.chr] <- TRUE
+    corr0_full <- readRDS(file.path(args$ld_matrix_dir, sprintf("chr%d_corr.rds", chr)))
+    corr0 <- corr0_full[local_idx, local_idx]
+
     if (any(is.na(corr0))) {
-      message("  Chr", chr, ": zeroing ", sum(is.na(corr0)), " NA correlations (cached)")
       corr0[is.na(corr0)] <- 0
       diag(corr0) <- 1
     }
-    keep_idx[ind.chr] <- TRUE
+
     if (is.null(corr)) {
       corr <- as_SFBM(corr0, tmp, compact = TRUE)
     } else {
@@ -154,39 +167,65 @@ if (use_cache) {
     }
   }
 } else {
-  message("Computing LD matrices from genotype data...")
-  for (chr in CHRS) {
-    ind.chr <- which(df_beta$chr == chr)
-    ind.chr2 <- df_beta$`_NUM_ID_`[ind.chr]
-    if (length(ind.chr2) < 2) next
+  # Check if per-chromosome cache exists
+  use_cache <- !is.null(args$ld_cache_dir) &&
+    all(vapply(CHRS, function(chr) {
+      file.exists(file.path(args$ld_cache_dir, paste0("chr", chr, "_corr.rds")))
+    }, logical(1)))
 
-    message(paste("Processing Chromosome:", chr, "| SNPs:", length(ind.chr2)))
-    keep_idx[ind.chr] <- TRUE
-
-    corr0 <- snp_cor(G, ind.col = ind.chr2, size = 3/1000, infos.pos = POS2[ind.chr2], ncores = NCORES)
-
-    # Repair NA/NaN correlations from monomorphic or fully-missing SNPs
-    if (any(is.na(corr0))) {
-      na_count <- sum(is.na(corr0))
-      message("  Chr", chr, ": repairing ", na_count, " NA correlations")
-      corr0[is.na(corr0)] <- 0
-      diag(corr0) <- 1
+  if (use_cache) {
+    message("Loading cached LD matrices from: ", args$ld_cache_dir)
+    for (chr in CHRS) {
+      ind.chr <- which(df_beta$chr == chr)
+      if (length(ind.chr) < 2) next
+      corr0 <- readRDS(file.path(args$ld_cache_dir, paste0("chr", chr, "_corr.rds")))
+      if (any(is.na(corr0))) {
+        message("  Chr", chr, ": zeroing ", sum(is.na(corr0)), " NA correlations (cached)")
+        corr0[is.na(corr0)] <- 0
+        diag(corr0) <- 1
+      }
+      keep_idx[ind.chr] <- TRUE
+      if (is.null(corr)) {
+        corr <- as_SFBM(corr0, tmp, compact = TRUE)
+      } else {
+        corr$add_columns(corr0, nrow(corr))
+      }
     }
+  } else {
+    message("Computing LD matrices from genotype data...")
+    POS2 <- obj.bigSNP$map$genetic.dist
+    for (chr in CHRS) {
+      ind.chr <- which(df_beta$chr == chr)
+      ind.chr2 <- df_beta$`_NUM_ID_`[ind.chr]
+      if (length(ind.chr2) < 2) next
 
-    if (!is.null(args$ld_cache_dir)) {
-      saveRDS(corr0, file.path(args$ld_cache_dir, paste0("chr", chr, "_corr.rds")))
-      message("  Cached chr", chr, " (", length(ind.chr2), " SNPs)")
-    }
+      message(paste("Processing Chromosome:", chr, "| SNPs:", length(ind.chr2)))
+      keep_idx[ind.chr] <- TRUE
 
-    if (is.null(corr)) {
-      corr <- as_SFBM(corr0, tmp, compact = TRUE)
-    } else {
-      corr$add_columns(corr0, nrow(corr))
+      corr0 <- snp_cor(G, ind.col = ind.chr2, size = 3/1000, infos.pos = POS2[ind.chr2], ncores = NCORES)
+
+      if (any(is.na(corr0))) {
+        na_count <- sum(is.na(corr0))
+        message("  Chr", chr, ": repairing ", na_count, " NA correlations")
+        corr0[is.na(corr0)] <- 0
+        diag(corr0) <- 1
+      }
+
+      if (!is.null(args$ld_cache_dir)) {
+        saveRDS(corr0, file.path(args$ld_cache_dir, paste0("chr", chr, "_corr.rds")))
+        message("  Cached chr", chr, " (", length(ind.chr2), " SNPs)")
+      }
+
+      if (is.null(corr)) {
+        corr <- as_SFBM(corr0, tmp, compact = TRUE)
+      } else {
+        corr$add_columns(corr0, nrow(corr))
+      }
     }
   }
 }
 
-# Align df_beta with corr (exclude variants not added, e.g. chr with < 2 SNPs)
+# Align df_beta with corr
 df_beta <- df_beta[keep_idx, ]
 message("Variants in LD matrix: ", nrow(df_beta))
 
