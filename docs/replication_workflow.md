@@ -104,7 +104,7 @@ The `genomic_preps.sh` script runs three sequential PLINK steps inside an Apptai
 
 1. **Update phenotype and sex** — attaches the phenotype and gender files to the raw PLINK dataset
 2. **Split by ancestry + QC** — extracts EUR and AFR subsets, filters variants with `--geno 0.05` and samples with `--mind 0.05`
-3. **Calculate allele frequencies** — runs `plink2 --freq` on each ancestry subset, producing `.afreq` files. These are **required** (not optional) for LDpred2 and lassosum2 to avoid MAF computation from the genotype matrix, which fails on data with high missingness.
+3. **Calculate allele frequencies** — runs `plink2 --freq` on each ancestry subset, producing `.afreq` files. These are **required** for LDpred2 and lassosum2 to ensure the pipeline works as intended. Providing `.afreq` avoids MAF computation directly from the genotype matrix, which can produce unreliable results on data with missingness or insufficient variation.
 
 ### Download Singularity Image Instructions
 
