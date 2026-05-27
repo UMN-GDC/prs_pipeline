@@ -117,6 +117,13 @@ if (!is.null(args$ld_matrix_dir)) {
 }
 df_beta <- snp_match(sumstats, map, join_by_pos = TRUE)
 
+# When using pre-computed LD matrix, remap _NUM_ID_ from map index to G column index
+if (!is.null(args$ld_matrix_dir)) {
+  g_idx <- readRDS(file.path(args$ld_matrix_dir, "g_idx.rds"))
+  df_beta$`_LOCAL_ID_` <- df_beta$`_NUM_ID_`
+  df_beta$`_NUM_ID_` <- g_idx[df_beta$`_NUM_ID_`]
+}
+
 POS2 <- obj.bigSNP$map$genetic.dist
 ind.row <- rows_along(G)
 
@@ -171,7 +178,7 @@ if (!is.null(args$ld_matrix_dir)) {
     if (length(ind.chr) < 2) next
 
     map_chr_idx <- which(ld_map$chr == chr)
-    local_idx <- match(df_beta$`_NUM_ID_`[ind.chr], map_chr_idx)
+    local_idx <- match(df_beta$`_LOCAL_ID_`[ind.chr], map_chr_idx)
 
     bad <- which(is.na(local_idx))
     if (length(bad) > 0) {

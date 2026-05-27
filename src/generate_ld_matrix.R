@@ -67,4 +67,8 @@ colnames(map_full) <- c("chr", "rsid", "pos", "a1", "a0")
 map_full <- map_full[map_full$chr %in% saved_chrs, ]
 saveRDS(map_full, file.path(args$out, "map.rds"))
 
+# Save mapping from map row -> original G column index
+g_idx <- which(obj.bigSNP$map$chromosome %in% saved_chrs)
+saveRDS(g_idx, file.path(args$out, "g_idx.rds"))
+
 message(sprintf("\nDone! %d total SNPs saved to %s", total_snps, args$out))
