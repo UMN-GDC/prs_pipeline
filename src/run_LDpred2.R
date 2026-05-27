@@ -191,7 +191,7 @@ if (use_cache) {
     if (length(ind.chr2) < 2) next
 
     # Remove zero-variance SNPs that cause NA correlations
-    sc <- big_scale(G, ind.col = ind.chr2)
+    sc <- big_scale()(G, ind.col = ind.chr2)
     zero_var <- which(sc$sd == 0 | is.na(sc$sd))
     if (length(zero_var) > 0) {
       bad_nmid <- ind.chr2[zero_var]
