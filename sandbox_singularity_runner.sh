@@ -16,6 +16,9 @@ set -eu
 #SIF_PATH="${SCRIPT_DIR}/prsv2_latest.sif"
 ENV_NAME="singlePRS"
 
+RUN_VIPRS=false
+RUN_PRSCSX=false
+
 usage() {
     echo "Usage: $0 [singularity options] [--C config_file] [pipeline options]"
     echo ""
@@ -28,6 +31,8 @@ usage() {
     echo "  -l             Run LDpred2"
     echo "  -s             Run lassosum2"
     echo "  -P             Run PRSice2 (requires -c)"
+    echo "  -v             Run VIPRS"
+    echo "  -x             Run PRS-CSx (joint-ancestry)"
     echo "  -S             Skip summary stats alignment"
     echo "  -B             Binary phenotype"
     echo ""
@@ -62,7 +67,7 @@ auto_bind() {
     if [[ -f "${CONFIG_FILE:-}" ]]; then
         while IFS= read -r line; do
             case "$line" in
-                summary_stats_file=*|bim_file_path=*|study_sample=*|output_path=*|path_repo=*|gwas_pca_eigenvec_file=*|afreq_file=*|ld_cache_dir=*|ld_matrix_dir=*)
+                summary_stats_file=*|bim_file_path=*|study_sample=*|output_path=*|path_repo=*|gwas_pca_eigenvec_file=*|afreq_file=*|ld_cache_dir=*|ld_matrix_dir=*|path_data=*|path_data_root=*|path_ref_dir=*|path_code=*|target_sumstats_file=*|training_sumstats_file=*|reference_SNPS_bim=*|bfile_gwas_input=*|bfile_study_sample=*|covariate_file_gwas=*|covariate_file_study_sample=*)
                     local path="${line#*=}"
                     path="${path%\"}"
                     path="${path#\"}"
@@ -102,6 +107,10 @@ while [[ $# -gt 0 ]]; do
             echo "[DEBUG] Config defines afreq_file='${afreq_file:-}'"
             PIPELINE_ARGS+="-C ${CONFIG_FILE} "
             shift 2 ;;
+        -v|--viprs) 
+            RUN_VIPRS=true; shift ;;
+        -x|--prscsx) 
+            RUN_PRSCSX=true; shift ;;
         --) 
             shift; PIPELINE_ARGS+="$* "; break ;;
         -*) 
@@ -116,6 +125,22 @@ done
 DETECTED_BINDS="$(auto_bind)"
 FINAL_BINDS="${BIND_PATHS:-$DETECTED_BINDS}"
 
-# Execute
+# Execute main pipeline (C+T, LDpred2, lassosum2, PRSice2)
 run_in_container "${FINAL_BINDS}" \
     bash "${path_repo}/run_single_ancestry_PRS_pipeline.sh" ${PIPELINE_ARGS}
+
+# --- VIPRS ---
+if [[ "$RUN_VIPRS" == true ]]; then
+    echo "[$(date)] Starting VIPRS Pipeline..."
+    run_in_container "${FINAL_BINDS}" \
+        bash "${path_repo}/src/run_viprs.sh" --c "${CONFIG_FILE}"
+    echo "[$(date)] VIPRS complete."
+fi
+
+# --- PRS-CSx ---
+if [[ "$RUN_PRSCSX" == true ]]; then
+    echo "[$(date)] Starting PRS-CSx Pipeline..."
+    run_in_container "${FINAL_BINDS}" \
+        bash "${path_repo}/src/run_PRScsx.sh" --c "${CONFIG_FILE}"
+    echo "[$(date)] PRS-CSx complete."
+fi
