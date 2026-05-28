@@ -8,8 +8,10 @@
 #SBATCH -o Viprs.out
 #SBATCH --job-name Viprs
 
-source /projects/standard/gdc/public/envs/load_miniconda3.sh 
-conda activate viprs_env
+if [[ -z "${SINGULARITY_CONTAINER:-}" ]]; then
+  source /projects/standard/gdc/public/envs/load_miniconda3.sh 
+  conda activate viprs_env
+fi
 
 ###### FUNCTION ######
 generate_viprs_sumstats() {
@@ -94,6 +96,17 @@ else
     echo "No --c file specified. Using command-line arguments and defaults."
 fi
 
+# Re-exec inside singularity container if not already there
+if [[ -z "${SINGULARITY_CONTAINER:-}" ]]; then
+  script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  repo_dir="$(dirname "$script_dir")"
+  sif_path="${path_repo:-$repo_dir}/prsv2_latest.sif"
+  if [[ -f "$sif_path" ]]; then
+    echo "[$(date)] Re-executing inside singularity container..."
+    binds="/projects,/scratch.global,/home,/tmp"
+    exec singularity exec --bind "$binds" --pwd "$(pwd)" "$sif_path" bash "$0" "$@"
+  fi
+fi
 
 generate_viprs_sumstats ${path_plink2} ${bfile_gwas_input} ${out_file} ${covariate_file_gwas}
 
