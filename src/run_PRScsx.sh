@@ -90,6 +90,18 @@ else
     echo "No --c file specified. Using command-line arguments and defaults."
 fi
 
+# Re-exec inside singularity container if not already there
+if [[ -z "${SINGULARITY_CONTAINER:-}" ]]; then
+  script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  repo_dir="$(dirname "$script_dir")"
+  sif_path="${path_repo:-$repo_dir}/prsv2_latest.sif"
+  if [[ -f "$sif_path" ]]; then
+    echo "[$(date)] Re-executing inside singularity container..."
+    binds="/projects,/scratch.global,/home,/tmp"
+    exec singularity exec --bind "$binds" --pwd "$(pwd)" "$sif_path" bash "$0" "$@"
+  fi
+fi
+
 # ---- Validate required args ----
 required_vars=(path_code path_data_root path_ref_dir path_plink2 anc1 anc2 \
   target_sumstats_file training_sumstats_file output_dir reference_SNPS_bim \
@@ -109,7 +121,9 @@ for ss_file in ${target_sumstats_file} ${training_sumstats_file}; do
 done
 
 # ---- Load environment ----
-source /projects/standard/gdc/public/envs/load_miniconda3.sh
+if [[ -z "${SINGULARITY_CONTAINER:-}" ]]; then
+  source /projects/standard/gdc/public/envs/load_miniconda3.sh
+fi
 
 # ---- Derived variables ----
 target_sst_file_using="${path_data_root}/gwas/target_sumstats_PRScsx.txt"
