@@ -30,6 +30,9 @@ parser$add_argument("--ld-matrix-dir", type="character", help="Directory with pr
 
 args <- parser$parse_args()
 
+# Wrapper to capture full state on any error
+tryCatch({
+
 # --- 2. DATA LOADING ---
 if (!is.null(args$anc_bed)) {
   rds_path <- if (!is.null(args$rds)) args$rds else sub("\\.bed$", ".rds", args$anc_bed)
@@ -143,14 +146,16 @@ if (!is.null(args$ld_matrix_dir)) {
   # Load pre-computed LD matrix (sumstats-independent)
   message("Loading pre-computed LD matrix from: ", args$ld_matrix_dir)
   ld_map <- readRDS(file.path(args$ld_matrix_dir, "map.rds"))
+  message("  ld_map rows: ", nrow(ld_map), ", cols: ", paste(colnames(ld_map), collapse=","))
 
   for (chr in CHRS) {
     ind.chr <- which(df_beta$chr == chr)
     if (length(ind.chr) < 2) next
 
     map_chr_idx <- which(ld_map$chr == chr)
+    message("  Chr", chr, ": df_beta has ", length(ind.chr), " SNPs, ld_map has ", length(map_chr_idx), " SNPs")
     local_idx <- match(df_beta$`_LOCAL_ID_`[ind.chr], map_chr_idx)
-
+    message("    _LOCAL_ID_ range: [", min(df_beta$`_LOCAL_ID_`[ind.chr], na.rm=TRUE), ", ", max(df_beta$`_LOCAL_ID_`[ind.chr], na.rm=TRUE), "], map_chr_idx range: [", min(map_chr_idx), ", ", max(map_chr_idx), "]")
     bad <- which(is.na(local_idx))
     if (length(bad) > 0) {
       local_idx <- local_idx[-bad]
@@ -310,3 +315,16 @@ if (grepl("^grid_NA$", best_col_name)) {
 bigreadr::fwrite2(final_prs_df, paste0(args$out, "_final_best_prs.csv"))
 
 message(paste("Selected", best_col_name, "as the best model based on validation score."))
+
+}, error = function(e) {
+  message("\n========== ERROR IN run_lassosum2.R ==========")
+  message("Condition: ", conditionMessage(e))
+  message("Call stack:")
+  for (i in seq_len(sys.nframe())) {
+    call <- sys.call(i)
+    if (!is.null(call)) message("  ", i, ": ", deparse(call)[1])
+  }
+  dump.frames("lassosum2_dump", to.file = TRUE)
+  message("Dumped to lassosum2_dump.rda")
+  stop(e)
+})
