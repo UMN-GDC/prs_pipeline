@@ -12,6 +12,7 @@ library(dplyr)
 library(bigreadr)
 
 options(bigstatsr.check.parallel = FALSE)
+options(bigstatsr.check.args = FALSE)
 
 # 1. SET UP ARGUMENT PARSER
 parser <- ArgumentParser(description='lassosum2 Pipeline for Polygenic Risk Scores')
