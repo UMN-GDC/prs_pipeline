@@ -333,6 +333,9 @@ if (length(best_grid_idx) == 0 || is.na(best_grid_idx) || all(is.na(params$score
 # --- 7. OUTPUT RESULTS ---
 
 # Recalculate Infinitesimal for everyone (removing the ind.row restriction)
+message("G is :", dim(G), " and the G matrix head (10x10):", G[1:10, 1:10])
+message("Head on beta inf:", head(beta_inf))
+
 prs_inf_all <- big_prodVec(G, beta_inf, ind.col = df_beta[["_NUM_ID_"]])
 
 # 2. Create the individual-level table
