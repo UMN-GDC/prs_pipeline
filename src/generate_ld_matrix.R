@@ -50,8 +50,9 @@ for (chr in CHRS) {
     na_count <- sum(is.na(corr0))
     message(sprintf("  Repaired %d NA correlations", na_count))
     corr0[is.na(corr0)] <- 0
-    diag(corr0) <- 1
   }
+  # Add small ridge to ensure positive definiteness for downstream Gibbs samplers
+  corr0 <- corr0 + diag(ncol(corr0)) * 1e-5
 
   saveRDS(corr0, file.path(args$out, sprintf("chr%d_corr.rds", chr)))
   message(sprintf("  Saved chr%d_corr.rds", chr))

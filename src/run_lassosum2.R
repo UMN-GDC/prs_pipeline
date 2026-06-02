@@ -169,9 +169,10 @@ if (!is.null(args$ld_matrix_dir)) {
     corr0 <- corr0_full[local_idx, local_idx]
 
     if (any(is.na(corr0))) {
+      message("  Chr", chr, ": zeroing ", sum(is.na(corr0)), " NA correlations")
       corr0[is.na(corr0)] <- 0
-      diag(corr0) <- 1
     }
+    corr0 <- corr0 + diag(ncol(corr0)) * 1e-5
 
     if (is.null(corr)) {
       corr <- as_SFBM(corr0, tmp, compact = TRUE)
@@ -195,8 +196,8 @@ if (!is.null(args$ld_matrix_dir)) {
       if (any(is.na(corr0))) {
         message("  Chr", chr, ": zeroing ", sum(is.na(corr0)), " NA correlations (cached)")
         corr0[is.na(corr0)] <- 0
-        diag(corr0) <- 1
       }
+      corr0 <- corr0 + diag(ncol(corr0)) * 1e-5
       keep_idx[ind.chr] <- TRUE
       if (is.null(corr)) {
         corr <- as_SFBM(corr0, tmp, compact = TRUE)
@@ -221,8 +222,8 @@ if (!is.null(args$ld_matrix_dir)) {
         na_count <- sum(is.na(corr0))
         message("  Chr", chr, ": repairing ", na_count, " NA correlations")
         corr0[is.na(corr0)] <- 0
-        diag(corr0) <- 1
       }
+      corr0 <- corr0 + diag(ncol(corr0)) * 1e-5
 
       if (!is.null(args$ld_cache_dir)) {
         saveRDS(corr0, file.path(args$ld_cache_dir, paste0("chr", chr, "_corr.rds")))
@@ -261,6 +262,7 @@ ind.test <- setdiff(rows_along(G), ind.val)
 pred_grid2 <- big_prodMat(G, beta_lassosum2, ind.col = df_beta[["_NUM_ID_"]])
 params2$score <- apply(pred_grid2[ind.val, ], 2, function(x) {
   if (all(is.na(x))) return(NA)
+  if (sd(x, na.rm = TRUE) == 0) return(NA)
   summary(lm(y[ind.val] ~ x))$coef[2, 3]
 })
 

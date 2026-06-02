@@ -210,9 +210,11 @@ if (!is.null(args$ld_matrix_dir)) {
     corr0 <- corr0_full[local_idx, local_idx]
 
     if (any(is.na(corr0))) {
+      message("  Chr", chr, ": zeroing ", sum(is.na(corr0)), " NA correlations")
       corr0[is.na(corr0)] <- 0
-      diag(corr0) <- 1
     }
+    # Add small ridge to ensure positive definiteness for the Gibbs sampler
+    corr0 <- corr0 + diag(ncol(corr0)) * 1e-5
 
     if (is.null(corr)) {
       ld <- Matrix::colSums(corr0^2)
@@ -238,8 +240,8 @@ if (!is.null(args$ld_matrix_dir)) {
       if (any(is.na(corr0))) {
         message("  Chr", chr, ": zeroing ", sum(is.na(corr0)), " NA correlations (cached)")
         corr0[is.na(corr0)] <- 0
-        diag(corr0) <- 1
       }
+      corr0 <- corr0 + diag(ncol(corr0)) * 1e-5
       keep_idx[ind.chr] <- TRUE
       if (is.null(corr)) {
         ld <- Matrix::colSums(corr0^2)
@@ -265,8 +267,8 @@ if (!is.null(args$ld_matrix_dir)) {
         na_count <- sum(is.na(corr0))
         message("  Chr", chr, ": repairing ", na_count, " NA correlations")
         corr0[is.na(corr0)] <- 0
-        diag(corr0) <- 1
       }
+      corr0 <- corr0 + diag(ncol(corr0)) * 1e-5
 
       if (!is.null(args$ld_cache_dir)) {
         saveRDS(corr0, file.path(args$ld_cache_dir, paste0("chr", chr, "_corr.rds")))
@@ -313,11 +315,22 @@ p_seq  <- signif(seq_log(1e-4, 1, length.out = 10), 2)
 params <- expand.grid(p = p_seq, h2 = h2_seq, sparse = c(FALSE, TRUE))
 
 beta_grid <- snp_ldpred2_grid(corr, df_beta, params, ncores = NCORES)
+
+# Diagnostic: report how many grid points have NA betas
+na_beta_cols <- which(apply(beta_grid, 2, function(col) all(is.na(col))))
+non_na_beta_cols <- which(apply(beta_grid, 2, function(col) any(!is.na(col))))
+message("Beta_grid: ", length(non_na_beta_cols), "/", ncol(beta_grid), " columns have non-NA estimates")
+if (length(na_beta_cols) > 0) {
+  message("  NA columns (", length(na_beta_cols), "): first few params — ",
+    paste(capture.output(print(params[head(na_beta_cols, 3), ])), collapse = " | "))
+}
+
 pred_grid <- big_prodMat(G, beta_grid, ind.col = df_beta[["_NUM_ID_"]])
 
 # Tuning on Validation set
 params$score <- apply(pred_grid[ind.val, ], 2, function(x) {
   if (all(is.na(x))) return(NA)
+  if (sd(x, na.rm = TRUE) == 0) return(NA)
   summary(lm(y[ind.val] ~ x))$coef[2, 3] # Use t-stat as score
 })
 
