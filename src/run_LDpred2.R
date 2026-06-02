@@ -25,6 +25,7 @@ parser$add_argument("--bim", type="character", required=TRUE, help="Path to the 
 parser$add_argument("--ss", type="character", required=TRUE, help="Path to summary statistics")
 parser$add_argument("--beta_se", type="character", help="Optional: separate table with beta_se/SE")
 parser$add_argument("--afreq", type="character", help="Path to PLINK2 .afreq file (bypasses snp_MAF on genotype matrix)")
+parser$add_argument("--pheno", type="character", help="Path to phenotype file (FID, IID, phenotype). Overrides .fam affection column.")
 
 parser$add_argument("--h2", type="numeric", default=0.4, help="Assumed heritability")
 parser$add_argument("--n_val", type="integer", default=49, help="Number of samples for validation")
@@ -57,6 +58,17 @@ CHR_id <- obj.bigSNP$map$chromosome
 POS_id <- obj.bigSNP$map$physical.pos
 y      <- obj.bigSNP$fam$affection
 NCORES <- args$ncores
+
+# Override phenotype from external file if provided
+if (!is.null(args$pheno)) {
+  message("Reading phenotype from: ", args$pheno)
+  pheno <- fread2(args$pheno, header = TRUE)
+  y <- pheno[[3]]
+  if (length(y) != length(obj.bigSNP$fam$affection)) {
+    stop("Phenotype file has ", length(y), " rows, but the .rds file has ",
+         length(obj.bigSNP$fam$affection), " individuals.")
+  }
+}
 
 # Load BIM for alignment
 bim.file <- fread2(args$bim, select = c(1, 4, 5, 6))
