@@ -29,6 +29,7 @@ ld_cache_dir=""
 ld_matrix_dir=""
 skip_ss_generation=0
 binary_flag=F # accepts T/F
+phenotype_info_file=""
 
 # --- Environment ---
 # (Environment loaded via Singularity container - conda activation removed)
@@ -92,7 +93,13 @@ if [[ "$skip_ss_generation" == 0 ]]; then
   summary_stats_file="${output_path}/gwas/CT_PRSice2_summary_stat_file.txt"
 fi
 
-awk '{print $1, $2, $6}' OFS="\t" ${study_sample}.fam > ${output_path}/gwas/study_sample_pheno.txt
+if [[ -n "${phenotype_info_file:-}" && -f "$phenotype_info_file" ]]; then
+  echo "[$(date)] Using external phenotype file: $phenotype_info_file"
+  cp "$phenotype_info_file" "${output_path}/gwas/study_sample_pheno.txt"
+else
+  echo "[$(date)] Extracting phenotype from .fam file (column 6)"
+  awk '{print $1, $2, $6}' OFS="\t" ${study_sample}.fam > ${output_path}/gwas/study_sample_pheno.txt
+fi
 
 # --- LD MATRIX GENERATION (prep step for LDpred2 / lassosum2) ---
 if [[ -n "$ld_matrix_dir" && ( "$RUN_LDPRED2" == true || "$RUN_LASSOSUM2" == true ) ]]; then
@@ -136,7 +143,7 @@ if [[ "$RUN_LDPRED2" == true ]]; then
     echo "[$(date)] Starting LDpred2 Pipeline..."
     mkdir -p "${output_path}/prs_pipeline/LDpred2"
     echo "[DEBUG] afreq_file='${afreq_file:-}'" >&2
-    LDpred2_args="--anc_bed ${study_sample}.bed --ss $summary_stats_file --bim $bim_file_path --out ${output_path}/prs_pipeline/LDpred2/prs_method --ncores $ncores"
+    LDpred2_args="--anc_bed ${study_sample}.bed --ss $summary_stats_file --bim $bim_file_path --out ${output_path}/prs_pipeline/LDpred2/prs_method --ncores $ncores --pheno ${output_path}/gwas/study_sample_pheno.txt"
     if [[ -n "$afreq_file" ]]; then
       LDpred2_args="$LDpred2_args --afreq $afreq_file"
     fi
