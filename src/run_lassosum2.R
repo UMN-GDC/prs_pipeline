@@ -22,6 +22,7 @@ parser$add_argument("--ss", type="character", required=TRUE, help="Path to GWAS 
 parser$add_argument("--bim", type="character", required=TRUE, help="Path to the .bim file")
 parser$add_argument("--beta_se", type="character", help="Optional: separate table with beta_se/SE")
 parser$add_argument("--afreq", type="character", help="Path to PLINK2 .afreq file (bypasses snp_MAF on genotype matrix)")
+parser$add_argument("--pheno", type="character", help="Path to phenotype file (FID, IID, phenotype). Overrides .fam affection column.")
 parser$add_argument("--n_val", type="integer", default=49, help="Number of samples for validation")
 parser$add_argument("--seed", type="integer", default=1, help="Seed for validation/test split")
 parser$add_argument("--out", type="character", default="lassosum_out", help="Prefix for output files")
@@ -47,6 +48,16 @@ obj.bigSNP <- snp_attach(args$rds)
 G      <- obj.bigSNP$genotypes
 y      <- obj.bigSNP$fam$affection
 NCORES <- args$ncores
+
+if (!is.null(args$pheno)) {
+  message("Reading phenotype from: ", args$pheno)
+  pheno <- fread2(args$pheno, header = TRUE)
+  y <- pheno[[3]]
+  if (length(y) != length(obj.bigSNP$fam$affection)) {
+    stop("Phenotype file has ", length(y), " rows, but the .rds file has ",
+         length(obj.bigSNP$fam$affection), " individuals.")
+  }
+}
 
 # --- 3. SUMMARY STATS PREPARATION (Adjusted for your new columns) ---
 # Use fread2 to handle the 9-column file

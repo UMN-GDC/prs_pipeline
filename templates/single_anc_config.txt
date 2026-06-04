@@ -14,6 +14,15 @@ gwas_pca_eigenvec_file="/projects/standard/gdc/public/prs_methods/data/simulated
 # afreq_file="/path/to/sample.afreq"  # Optional: bypasses MAF computation from genotype matrix for LDpred2 and lassosum2
 phenotype_info_file="/projects/standard/gdc/public/prs_methods/data/simulated_1000G/prs_pipeline/viprs/study_sample_pheno.txt"
 
+# --- Multi-phenotype mode (optional; overrides single-phenotype settings above) ---
+# Provide a comma-separated list of summary stats files (one per phenotype) and
+# a tab-separated multi-phenotype file with columns: FID, IID, pheno1, pheno2, ...
+# The first summary stats file maps to column 3 (first phenotype), the second to column 4, etc.
+# Phenotype names are read from the multi_pheno_file header row.
+# Output goes to: {output_path}/prs_pipeline/{phenotype_name}/{METHOD}/
+# summary_stats_files="/path/to/gwas_pheno1.txt,/path/to/gwas_pheno2.txt"
+# multi_pheno_file="/path/to/combined_phenotypes.txt"
+
 RUN_CT=true
 RUN_LDPRED2=true
 RUN_LASSOSUM2=true
