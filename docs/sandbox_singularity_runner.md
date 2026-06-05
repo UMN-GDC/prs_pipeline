@@ -1,6 +1,6 @@
 # sandbox_singularity_runner.sh
 
-A wrapper script that runs the Single Ancestry PRS Pipeline inside a **Singularity container** (`singleprs_latest.sif`). Designed for both SLURM HPC and local execution, with automatic bind-mount detection that only mounts directories present on the host system.
+The **primary wrapper** for running the Single Ancestry PRS Pipeline inside a **Singularity container** (`prsv2_latest.sif`). Designed for both SLURM HPC and local execution, with automatic bind-mount detection that only mounts directories present on the host system.
 
 ## Overview
 
@@ -63,12 +63,17 @@ afreq_file="/path/to/sample.afreq"
 | Variable | Description |
 |----------|-------------|
 | `summary_stats_file` | GWAS summary statistics (see README for required columns) |
+| `summary_stats_files` | Comma-separated list for multi-phenotype mode (overrides `summary_stats_file`) |
+| `multi_pheno_file` | Tab-sep file: FID, IID, pheno1, pheno2, ... (with header) for multi-phenotype mode |
+| `phenotype_info_file` | External phenotype file (FID IID Value, no header) |
 | `bim_file_path` | `.bim` file for allele alignment |
 | `study_sample` | PLINK prefix (no extension) for the study cohort |
 | `output_path` | Directory for all results |
 | `path_repo` | Path to the cloned `prs_pipeline` repository |
 | `gwas_pca_eigenvec_file` | PCA eigenvector file for covariates |
-| `afreq_file` | Optional: PLINK2 `.afreq` file; bypasses MAF computation from genotype matrix for LDpred2 and lassosum2 |
+| `afreq_file` | PLINK2 `.afreq` file; **required** for LDpred2/lassosum2 to avoid unreliable MAF computation from genotype matrix |
+| `ld_cache_dir` | Per-chromosome LD matrix cache directory (avoids recomputing on re-runs) |
+| `ld_matrix_dir` | Pre-computed LD matrix directory (from `src/generate_ld_matrix.R`) |
 
 ## Auto-Bind Mount Detection
 
@@ -99,11 +104,11 @@ output_path/
 
 ## Sandbox vs. Production Runner
 
-The repo contains two nearly identical wrappers:
+`singularity_runner.sh` is **deprecated** — use `sandbox_singularity_runner.sh` for all new work.
 
-| Aspect | `sandbox_singularity_runner.sh` | `singularity_runner.sh` |
-|--------|-------------------------------|------------------------|
-| Bind strategy | Top-level roots, existence-checked | Mount-point extraction, always binds `/projects` + `output_path` |
-| `--bind` flag | Combined `--bind` string with `--pwd` and `/tmp:/tmp` | Three explicit `--bind` flags + `--pwd` |
-| SLURM header | Present (6h, 16c, 64g, `small` partition) | Absent (for manual/local use) |
-| Use case | Safer for shared/transient filesystems | Designed for a specific HPC environment |
+| Aspect | `sandbox_singularity_runner.sh` **(primary)** | `singularity_runner.sh` (deprecated) |
+|--------|-----------------------------------------------|--------------------------------------|
+| Container SIF | `prsv2_latest.sif` (pull: `apptainer pull oras://ghcr.io/mainsqu33ze/gdcgenomicsqc/prsv2:latest`) | `singleprs_latest.sif` |
+| Bind strategy | Top-level roots, existence-checked | Mount-point extraction, always binds `/projects` |
+| SLURM header | Present (20h, 16c, 200g, `medium` partition) | Absent (manual/local use only) |
+| Use case | Safer for shared/transient filesystems | Legacy — hardcoded for specific HPC environment |

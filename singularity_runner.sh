@@ -1,4 +1,5 @@
 #!/bin/bash
+# DEPRECATED: Use sandbox_singularity_runner.sh instead (more robust, safer bind-mounts, Slurm-ready).
 # Wrapper script to run PRS pipeline with Singularity container
 # Works on both SLURM HPC and local machines
 
@@ -56,7 +57,7 @@ auto_bind() {
     if [[ -f "${CONFIG_FILE:-}" ]]; then
         while IFS= read -r line; do
             case "$line" in
-                summary_stats_file=*|bim_file_path=*|study_sample=*|output_path=*|path_repo=*|gwas_pca_eigenvec_file=*|afreq_file=*|ld_cache_dir=*|ld_matrix_dir=*)
+                summary_stats_file=*|summary_stats_files=*|multi_pheno_file=*|phenotype_info_file=*|bim_file_path=*|study_sample=*|output_path=*|path_repo=*|gwas_pca_eigenvec_file=*|afreq_file=*|ld_cache_dir=*|ld_matrix_dir=*)
                     local path="${line#*=}"
                     path="${path%\"}"
                     path="${path#\"}"
@@ -82,7 +83,6 @@ while [[ $# -gt 0 ]]; do
         --C|-C) 
             CONFIG_FILE=$(realpath "$2"); 
             source ${CONFIG_FILE}
-            echo "[DEBUG] Config defines afreq_file='${afreq_file:-}'"
             PIPELINE_ARGS+="-C ${CONFIG_FILE} "
             shift 2 ;;
         --) 

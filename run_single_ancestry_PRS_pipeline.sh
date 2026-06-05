@@ -41,7 +41,8 @@ multi_pheno_file=""          # Tab-sep file: FID, IID, pheno1, pheno2, ... (with
 # --- Pre-load config ---
 for arg in "$@"; do
     if [[ "$arg" == "-C" ]]; then
-        conf_file=$(echo "$@" | grep -oP '(?<=-C )[^ ]+')
+        # Extract value after -C (macOS-compatible, no -P flag)
+        conf_file=$(echo "$@" | sed -n 's/.*-C \([^ ]*\).*/\1/p')
         if [[ -f "$conf_file" ]]; then
             echo "Loading config: $conf_file"
             source "$conf_file"
@@ -110,8 +111,8 @@ run_phenotype_pipeline() {
 
     # --- 1. Summary Stats Prep ---
     local ss_local="$ss_file"
+    mkdir -p "${output_path}/gwas"
     if [[ "$skip_ss_generation" == 0 ]]; then
-        mkdir -p "${output_path}/gwas"
         echo "[$(date)] $tag Aligning summary stats..."
         Rscript "${path_repo}/src/prepare_sumstats.R" \
             --input "$ss_local" \
