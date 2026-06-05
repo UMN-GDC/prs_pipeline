@@ -62,7 +62,7 @@ At this point the cleaned file is ready. You do **not** run `prepare_sumstats.R`
 
 ## 2. Phenotype File and Gender File
 
-These two files must be prepared **before** running `genomic_preps.sh`. Both are plain-text, tab-separated, **without a header row**, with the IID duplicated in columns 1 and 2 (FID and IID are the same — there are no family groupings). **Ensure there are no quotes in the file for FID and IID**
+These two files must be prepared **before** running `genomic_preps.sh`. Both are plain-text, tab-separated. The pipeline auto-detects missing headers for the phenotype file (first field ≠ `FID`/`fid`), so headers are optional but recommended. Use the IID duplicated in columns 1 and 2 (FID and IID are the same — there are no family groupings). **Ensure there are no quotes in the file for FID and IID**
 
 ### Gender file (`ready_sex.txt`)
 
@@ -182,10 +182,12 @@ RUN_PRSice2=true
 | `study_sample` | yes | PLINK prefix (no extension) for the target cohort |
 | `output_path` | yes | Directory for all PRS method outputs |
 | `path_repo` | yes | Path to the cloned `prs_pipeline` repository |
-| `afreq_file` | **required** | `.afreq` file from `plink2 --freq`. Required for LDpred2 and lassosum2 to bypass MAF computation from the genotype matrix |
-| `ncores` | no | Number of CPU cores for parallel LD computation (default: 16). Match to Slurm `--cpus-per-task` |
+| `afreq_file` | **required** for LDpred2/lassosum2 | `.afreq` file from `plink2 --freq`. Required for LDpred2 and lassosum2 to bypass MAF computation from the genotype matrix |
+| `gwas_pca_eigenvec_file` | for C+T | PCA eigenvector file for covariate adjustment |
+| `ncores` | no (default: 16) | Number of CPU cores for parallel LD computation. Match to Slurm `--cpus-per-task` |
 | `ld_cache_dir` | no | Directory for cached per-chromosome LD matrices. If the cache exists, LD loading takes seconds instead of hours. Delete and re-run to regenerate if inputs change |
-| `skip_ss_generation` | no | Set to `0` (default) to let the pipeline run `prepare_sumstats.R` inside the container; set to `1` if you ran it manually |
+| `skip_ss_generation` | no (default: 0) | Set to `0` (default) to let the pipeline run `prepare_sumstats.R` inside the container; set to `1` if you ran it manually |
+| `phenotype_info_file` | no | External phenotype file (FID IID value). Header auto-added if missing |
 
 ### Method config
 

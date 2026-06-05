@@ -77,7 +77,7 @@ afreq_file="/path/to/sample.afreq"
 
 ## Input File Formats
 
-All input files are tab-separated (`.tsv`). Headers are **required** — the pipeline auto-detects and prepends a header if one is missing for `phenotype_info_file`.
+All input files are tab-separated (`.tsv`). Headers are **required** (auto-detected and prepended for `phenotype_info_file`; see below).
 
 ### Summary Statistics (`summary_stats_file`)
 
@@ -89,7 +89,7 @@ rs101	1	10001	G	A	0.012	0.005	0.0081	50000
 rs102	1	10005	C	T	-0.008	0.004	0.0234	50000
 ```
 
-Column mapping is flexible — accepted aliases: `rsid`/`rs_id`/`rsids` for SNP, `pval` for P, `BETA` for beta, `SE` for beta_se, etc.
+Column mapping is flexible: `rsid`/`rs_id`/`rsids` for SNP, `pval` for P. The first step (`prepare_sumstats.R`) expects `beta` (lowercase) and `sebeta`/`beta_se` for SE. When `skip_ss_generation=1`, downstream R scripts also accept `BETA`/`eff` and `SE`.
 
 ### External Phenotype File (`phenotype_info_file`)
 
@@ -189,5 +189,5 @@ output_path/
 |--------|-----------------------------------------------|--------------------------------------|
 | Container SIF | `prsv2_latest.sif` (pull: `apptainer pull oras://ghcr.io/mainsqu33ze/gdcgenomicsqc/prsv2:latest`) | `singleprs_latest.sif` |
 | Bind strategy | Top-level roots, existence-checked | Mount-point extraction, always binds `/projects` |
-| SLURM header | Present (20h, 16c, 200g, `medium` partition) | Absent (manual/local use only) |
+| SLURM header | Present (20h, 4c, 64g, `medium` partition) | Absent (manual/local use only) |
 | Use case | Safer for shared/transient filesystems | Legacy — hardcoded for specific HPC environment |

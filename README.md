@@ -235,7 +235,7 @@ The file needs a header row and tab separators. At minimum it must contain one o
 * {A1, alt, a1} — effect allele
 * {p, pval} — P-value
 * {sebeta, beta_se} — standard error of beta
-* beta — effect size
+* beta — effect size (lowercase only in `prepare_sumstats.R`; downstream R scripts also accept `BETA`/`eff` when `skip_ss_generation=1`)
 * {ref, A2} — reference allele (optional — used for output only)
 
 Chromosome and position are pulled from the BIM file during alignment, so `chrom`/`CHR`/`BP` columns in the sumstats are optional.
@@ -270,8 +270,8 @@ Instead of modifying the main script, create a `my_project.conf` file to define 
 | `study_sample` | yes | PLINK prefix (no extension) for the target cohort |
 | `output_path` | yes | Directory for all results |
 | `path_repo` | yes | Path to the cloned `prs_pipeline` repository |
-| `n_total_gwas` | yes | Total GWAS sample size (used for `n_eff`) |
-| `afreq_file` | recommended | PLINK2 `.afreq` file; required for LDpred2 and lassosum2 to avoid MAF computation from the genotype matrix |
+| `n_total_gwas` | no (default: 31968) | Total GWAS sample size (used for `n_eff`) |
+| `afreq_file` | **required** for LDpred2/lassosum2 | PLINK2 `.afreq` file; required for LDpred2 and lassosum2 to avoid unreliable MAF computation from the genotype matrix |
 | `gwas_pca_eigenvec_file` | for C+T | PCA eigenvector file for covariate adjustment |
 | `ld_cache_dir` | no | Directory to cache per-chromosome LD matrices (avoids recomputing on re-runs) |
 | `ncores` | no | CPU cores for parallel LD computation (default: 16) |
@@ -337,12 +337,12 @@ output_path/
 ```
 
 ### Imporant Notes
-* **Resource Allocation**: The script defaults to **16 CPUs** and **64GB RAM**. Adjust the `#SBATCH` headers if your LD reference panel or genotype file is exceptionally large.
+* **Resource Allocation**: The sandbox runner Slurm header requests **4 CPUs** and **64GB RAM**. The pipeline defaults to `ncores=16` for computation — if using the sandbox runner, increase `--cpus-per-task` or lower `ncores` to avoid oversubscription.
 * **C+T Dependency**: The PRSice-2 implementation in this script relies on the data preparation steps performed during the C+T run. Always include `-c` when using `-P`.
 * **Environment**: Ensure `R_LIBS_USER` in the script points to the library where `bigsnpr` is installed.
 
 ### Troubleshooting
-Memory Errors: If LDpred2 fails, ensure the --mem=64g SLURM header is sufficient for your LD reference panel.
+Memory Errors: If LDpred2 fails, ensure the `--mem=64g` SLURM header is sufficient for your LD reference panel. Increase to 200g+ for large panels.
 Missing Variants: If the aligned summary stats file is empty, check that your .bim file RSIDs match the format in your summary statistics.
 
 ### Original References and Documentation
