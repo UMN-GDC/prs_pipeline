@@ -38,9 +38,10 @@ total_snps <- 0
 
 for (chr in CHRS) {
   ind.chr <- which(obj.bigSNP$map$chromosome == chr)
-  if (length(ind.chr) < 2) next
+  n_chr <- length(ind.chr)
+  if (n_chr < 2) next
 
-  message(sprintf("Chr%d: %d SNPs ... computing", chr, length(ind.chr)))
+  message(sprintf("Chr%d: %d SNPs ... computing", chr, n_chr))
 
   corr0 <- snp_cor(G, ind.col = ind.chr, size = 3 / 1000,
                    infos.pos = POS2[ind.chr], ncores = args$ncores)
@@ -56,9 +57,13 @@ for (chr in CHRS) {
 
   saveRDS(corr0, file.path(args$out, sprintf("chr%d_corr.rds", chr)))
   message(sprintf("  Saved chr%d_corr.rds", chr))
-  saved_chrs <- c(saved_chrs, chr)
 
-  total_snps <- total_snps + length(ind.chr)
+  # Free memory — correlation matrices can exceed 500MB for large chromosomes
+  rm(corr0, ind.chr)
+  gc()
+
+  saved_chrs <- c(saved_chrs, chr)
+  total_snps <- total_snps + n_chr
 }
 
 # Save full map (chr, rsid, pos, a1, a0) matching the LD matrix order
