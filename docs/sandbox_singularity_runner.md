@@ -62,10 +62,10 @@ afreq_file="/path/to/sample.afreq"
 
 | Variable | Description |
 |----------|-------------|
-| `summary_stats_file` | GWAS summary statistics (see README for required columns) |
+| `summary_stats_file` | GWAS summary statistics (see [Input File Formats](#input-file-formats) below) |
 | `summary_stats_files` | Comma-separated list for multi-phenotype mode (overrides `summary_stats_file`) |
-| `multi_pheno_file` | Tab-sep file: FID, IID, pheno1, pheno2, ... (with header) for multi-phenotype mode |
-| `phenotype_info_file` | External phenotype file (FID IID Value, no header) |
+| `multi_pheno_file` | Multi-phenotype file with header (see [Input File Formats](#input-file-formats)) |
+| `phenotype_info_file` | External phenotype file (see [Input File Formats](#input-file-formats)); header auto-added if missing |
 | `bim_file_path` | `.bim` file for allele alignment |
 | `study_sample` | PLINK prefix (no extension) for the study cohort |
 | `output_path` | Directory for all results |
@@ -74,6 +74,72 @@ afreq_file="/path/to/sample.afreq"
 | `afreq_file` | PLINK2 `.afreq` file; **required** for LDpred2/lassosum2 to avoid unreliable MAF computation from genotype matrix |
 | `ld_cache_dir` | Per-chromosome LD matrix cache directory (avoids recomputing on re-runs) |
 | `ld_matrix_dir` | Pre-computed LD matrix directory (from `src/generate_ld_matrix.R`) |
+
+## Input File Formats
+
+All input files are tab-separated (`.tsv`). Headers are **required** — the pipeline auto-detects and prepends a header if one is missing for `phenotype_info_file`.
+
+### Summary Statistics (`summary_stats_file`)
+
+GWAS summary statistics with at minimum these columns:
+
+```text
+SNP	CHR	BP	A1	A2	beta	beta_se	P	n_eff
+rs101	1	10001	G	A	0.012	0.005	0.0081	50000
+rs102	1	10005	C	T	-0.008	0.004	0.0234	50000
+```
+
+Column mapping is flexible — accepted aliases: `rsid`/`rs_id`/`rsids` for SNP, `pval` for P, `BETA` for beta, `SE` for beta_se, etc.
+
+### External Phenotype File (`phenotype_info_file`)
+
+Single-phenotype file with 3+ columns. The pipeline uses **column 3** (first phenotype column) for analysis.
+
+```text
+FID	IID	phenotype
+Sample1	ID001	1.24
+Sample2	ID002	-0.87
+Sample3	ID003	0.53
+```
+
+**Header not required** — if missing, the pipeline auto-detects (first field ≠ `FID`/`fid`) and prepends `FID	IID	phenotype1	[phenotype2]	...` matching the number of columns in the file.
+
+### Multi-Phenotype File (`multi_pheno_file`)
+
+Tab-separated file with FID, IID, and one or more phenotype columns. **Header is required** for column name lookup.
+
+```text
+FID	IID	phenoA	phenoB	phenoC
+Sample1	ID001	1.24	0.53	-0.10
+Sample2	ID002	-0.87	1.12	0.75
+```
+
+The pipeline extracts each named column into individual `study_sample_pheno.txt` files and runs all requested methods per phenotype.
+
+### Study Sample PLINK Files (`study_sample`)
+
+Standard PLINK binary format (`.bed`/`.bim`/`.fam`). The `.fam` file provides the baseline phenotype (column 6) — used as a fallback when no external phenotype file is given.
+
+### PCA Eigenvectors (`gwas_pca_eigenvec_file`)
+
+PLINK2-format eigenvector file — 2 header columns (FID, IID) followed by PCs:
+
+```text
+FID	IID	PC1	PC2	PC3	PC4	PC5	PC6
+Sample1	ID001	-0.021	0.015	0.003	-0.008	0.011	-0.004
+```
+
+### Allele Frequencies (`afreq_file`)
+
+PLINK2 `.afreq` format:
+
+```text
+CHR	SNP	REF	ALT	ALT_FREQS	OBS_CT
+1	rs101	G	A	0.350	50000
+1	rs102	C	T	0.620	50000
+```
+
+**Required** for LDpred2 and lassosum2 to avoid unreliable MAF computation from the genotype matrix.
 
 ## Auto-Bind Mount Detection
 
