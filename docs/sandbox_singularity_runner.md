@@ -65,7 +65,7 @@ afreq_file="/path/to/sample.afreq"
 | `summary_stats_file` | GWAS summary statistics (see [Input File Formats](#input-file-formats) below) |
 | `summary_stats_files` | Comma-separated list for multi-phenotype mode (overrides `summary_stats_file`) |
 | `multi_pheno_file` | Multi-phenotype file with header (see [Input File Formats](#input-file-formats)) |
-| `phenotype_info_file` | External phenotype file (see [Input File Formats](#input-file-formats)); header auto-added if missing |
+| `phenotype_info_file` | External phenotype file (see [Input File Formats](#input-file-formats)); header **auto-detected and prepended if missing** (checks if first field is `FID`/`fid`) |
 | `bim_file_path` | `.bim` file for allele alignment |
 | `study_sample` | PLINK prefix (no extension) for the study cohort |
 | `output_path` | Directory for all results |
@@ -102,7 +102,11 @@ Sample2	ID002	-0.87
 Sample3	ID003	0.53
 ```
 
-**Header not required** — if missing, the pipeline auto-detects (first field ≠ `FID`/`fid`) and prepends `FID	IID	phenotype1	[phenotype2]	...` matching the number of columns in the file.
+**Feature: Auto-Header Detection**
+- If the file lacks a header (first field ≠ `FID`/`fid`), the pipeline auto-detects the column count and prepends `FID	IID	phenotype1	[phenotype2]	...`
+- Works for **any number of columns** (1 phenotype or many)
+- A log message confirms: `No header detected — prepending N-column header (FID, IID, phenotype1...phenotypeN)`
+- **No requirement change:** the single-phenotype pipeline only uses column 3 regardless of how many columns exist. Use `multi_pheno_file` (see below) to run multiple phenotypes in a single pass.
 
 ### Multi-Phenotype File (`multi_pheno_file`)
 
@@ -115,6 +119,15 @@ Sample2	ID002	-0.87	1.12	0.75
 ```
 
 The pipeline extracts each named column into individual `study_sample_pheno.txt` files and runs all requested methods per phenotype.
+
+**1:1 matching required:** the number of summary stats files in `summary_stats_files` must equal the number of phenotype value columns (columns 3+). For example, 3 phenotype columns require 3 summary stats files:
+
+```bash
+summary_stats_files="/path/to/gwas_A.txt,/path/to/gwas_B.txt,/path/to/gwas_C.txt"
+multi_pheno_file="/path/to/phenotypes.txt"
+```
+
+The pipeline validates this at runtime and exits with an error if the counts differ.
 
 ### Study Sample PLINK Files (`study_sample`)
 
