@@ -3,7 +3,7 @@
 prs_pipeline_path=$1
 config_path=$2
 
-path_singularity_runner=$(find ${prs_pipeline_path} -name "singularity_runner.sh")
+path_singularity_runner=$(find ${prs_pipeline_path} -name "sandbox_singularity_runner.sh")
 
 sbatch --time=6:00:00 \
   --ntasks=1 \
