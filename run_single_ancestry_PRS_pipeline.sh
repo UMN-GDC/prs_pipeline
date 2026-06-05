@@ -139,10 +139,26 @@ run_phenotype_pipeline() {
             > "${output_path}/gwas/study_sample_pheno.txt"
     elif [[ -n "${phenotype_info_file:-}" && -f "$phenotype_info_file" ]]; then
         echo "[$(date)] $tag Using external phenotype file: $phenotype_info_file"
-        cp "$phenotype_info_file" "${output_path}/gwas/study_sample_pheno.txt"
+        # Auto-detect and add header if missing (check first field of line 1)
+        pheno_header=$(head -1 "$phenotype_info_file" | awk '{print $1}')
+        if [[ "$pheno_header" != "FID" && "$pheno_header" != "fid" ]]; then
+            ncols=$(head -1 "$phenotype_info_file" | awk '{print NF}')
+            echo "[$(date)] $tag   No header detected — prepending ${ncols}-column header (FID, IID, phenotype1...phenotype$((ncols-2)))"
+            {
+                awk -v ncols="$ncols" 'BEGIN{
+                    printf "FID\tIID"
+                    for(i=3; i<=ncols; i++) printf "\tphenotype%d", i-2
+                    print ""
+                }'
+                cat "$phenotype_info_file"
+            } > "${output_path}/gwas/study_sample_pheno.txt"
+        else
+            cp "$phenotype_info_file" "${output_path}/gwas/study_sample_pheno.txt"
+        fi
     else
-        echo "[$(date)] $tag Extracting phenotype from .fam file (column 6)"
-        awk '{print $1, $2, $6}' OFS="\t" "${study_sample}.fam" > "${output_path}/gwas/study_sample_pheno.txt"
+        echo "[$(date)] $tag Extracting phenotype from .fam file (column 6) with header"
+        awk 'BEGIN{print "FID\tIID\tphenotype"} {print $1, $2, $6}' OFS="\t" "${study_sample}.fam" \
+            > "${output_path}/gwas/study_sample_pheno.txt"
     fi
 
     # --- 3. LD Matrix ---
