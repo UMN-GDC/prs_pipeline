@@ -17,8 +17,10 @@ p.threshold <- c(0.001,0.05,0.1,0.2,0.3,0.4,0.5)
 phenotype <- read.table(phenotype_file, header=FALSE)
 colnames(phenotype)=c("FID", "IID", "phenotype")
 
-# Read PCs
-pcs <- read.table(pcs_file, header=FALSE)
+# Read PCs (auto-detect header: if column 2 of first line is numeric, no header)
+first_row <- read.table(pcs_file, nrows=1, stringsAsFactors=FALSE)
+has_header <- grepl("[A-Za-z]", first_row[1,2])
+pcs <- read.table(pcs_file, header=has_header)
 colnames(pcs) <- c("FID","IID", paste0("PC", 1:(ncol(pcs)-2)))
 
 # Merge phenotype + PCs
