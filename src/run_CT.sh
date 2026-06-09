@@ -80,6 +80,7 @@ plink \
     --clump ${sum_stats_file} \
     --clump-snp-field SNP \
     --clump-field P \
+    --allow-no-sex \
     --out temp
 
 awk 'NR!=1{print $3}' temp.clumped >  temp.valid.snp
@@ -99,16 +100,19 @@ plink \
     --score ${sum_stats_file} 1 4 6 header \
     --q-score-range range_list SNP.pvalue \
     --extract temp.valid.snp \
+    --allow-no-sex \
     --out temp
 plink \
     --bfile ${study_sample} \
     --indep-pairwise 200 50 0.25 \
+    --allow-no-sex \
     --out temp
 
 plink \
     --bfile ${study_sample} \
     --extract temp.prune.in \
     --pca 6 \
+    --allow-no-sex \
     --out temp
 
 # R commands--helps find the p-value threshold that leads to the PRS with the best fit under the clumping and thresholding model
