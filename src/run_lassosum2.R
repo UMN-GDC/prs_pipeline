@@ -328,6 +328,20 @@ if (grepl("^grid_NA$", best_col_name)) {
 # Save the finalized single-score file
 bigreadr::fwrite2(final_prs_df, paste0(args$out, "_final_best_prs.csv"))
 
+# Export per-SNP weights for external test scoring
+if (exists("best_beta") && !anyNA(best_beta)) {
+  idx <- df_beta[["_NUM_ID_"]]
+  map_sub <- obj.bigSNP$map[idx, ]
+  weights <- data.frame(
+    SNP  = as.character(map_sub[[2]]),
+    A1   = as.character(map_sub[[6]]),
+    BETA = best_beta,
+    stringsAsFactors = FALSE
+  )
+  write.table(weights, paste0(args$out, "_weights.txt"),
+              sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
+}
+
 message(paste("Selected", best_col_name, "as the best model based on validation score."))
 
 }, error = function(e) {

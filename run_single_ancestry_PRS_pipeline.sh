@@ -30,6 +30,8 @@ ld_matrix_dir=""
 skip_ss_generation=0
 binary_flag=F # accepts T/F
 phenotype_info_file=""
+test_sample=""
+test_pca_eigenvec_file=""
 
 # Multi-phenotype parameters
 summary_stats_files=""       # Comma-separated list of GWAS files, one per phenotype
@@ -255,6 +257,25 @@ EOF
 
     echo "[$(date)] $tag All jobs submitted to background. Waiting..."
     wait
+
+    # --- 8. Test Evaluation (if test data provided) ---
+    if [[ -n "${test_sample:-}" ]]; then
+        echo "[$(date)] $tag Starting test evaluation..."
+        bash "${path_repo}/src/score_test.sh" \
+            --test-bfile "$test_sample" \
+            --train-out-dir "$methods_output" \
+            --pheno-file "${phenotype_info_file:-}" \
+            --test-pca-file "${test_pca_eigenvec_file:-}" \
+            --sumstats "$ss_local" \
+            --path-repo "$path_repo" \
+            --binary-flag "$binary_flag" \
+            --ran-ct "$RUN_CT" \
+            --ran-ldpred2 "$RUN_LDPRED2" \
+            --ran-lassosum2 "$RUN_LASSOSUM2" \
+            --ran-prsice2 "$RUN_PRSice2"
+        echo "[$(date)] $tag Test evaluation complete."
+    fi
+
     echo "[$(date)] $tag Pipeline complete."
 }
 

@@ -382,6 +382,29 @@ results <- data.frame(
 )
 write.csv(results, paste0(args$out, "_performance.csv"), row.names = FALSE)
 
+# 5. Export per-SNP weights for external test scoring
+idx <- df_beta[["_NUM_ID_"]]
+map_sub <- obj.bigSNP$map[idx, ]
+inf_weights <- data.frame(
+  SNP  = as.character(map_sub[[2]]),
+  A1   = as.character(map_sub[[6]]),
+  BETA = beta_inf,
+  stringsAsFactors = FALSE
+)
+write.table(inf_weights, paste0(args$out, "_inf_weights.txt"),
+            sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
+
+if (exists("best_grid_idx") && !is.na(best_grid_idx) && length(best_grid_idx) > 0) {
+  grid_weights <- data.frame(
+    SNP  = as.character(map_sub[[2]]),
+    A1   = as.character(map_sub[[6]]),
+    BETA = beta_grid[, best_grid_idx],
+    stringsAsFactors = FALSE
+  )
+  write.table(grid_weights, paste0(args$out, "_grid_weights.txt"),
+              sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
+}
+
 message("Success! Individual scores saved to: ", paste0(args$out, "_individual_scores.txt"))
 
 }, error = function(e) {
