@@ -32,7 +32,7 @@ load_config() {
 study_sample=EUR_simulation_study_sample
 sum_stats_file=sumstats_CT_PRSice2.txt
 phenotype_info_file=phenotype_info.txt
-gwas_pca_eigenvec_file=EUR_simulation_gwas_pca.eigenvec
+gwas_pca_eigenvec_file=""
 output_path=/projects/standard/gdc/public/data/simulated_1000G
 path_prs_pipeline=/projects/standard/gdc/public/prs_methods/prs_pipeline
 
@@ -115,12 +115,22 @@ plink \
     --allow-no-sex \
     --out temp
 
+# Use study-sample PCA by default; user-provided gwas_pca_eigenvec_file overrides
+pca_file="${gwas_pca_eigenvec_file:-temp.eigenvec}"
+if [[ -z "$gwas_pca_eigenvec_file" ]]; then
+    pca_file="temp.eigenvec"
+    echo "Using study-sample PCA (temp.eigenvec)"
+else
+    pca_file="$gwas_pca_eigenvec_file"
+    echo "Using user-provided PCA file: $pca_file"
+fi
+
 # R commands--helps find the p-value threshold that leads to the PRS with the best fit under the clumping and thresholding model
 ## note that this is approximate (it cannot usually be determined with certainty) but can be approximated by performing a regression 
 ## between the calculated PRS at a given range of p-values; can then select the PRS that explains the highest phenotypic variance
 Rscript ${path_prs_pipeline}/src/CT_script.R \
     ${phenotype_info_file} \
-    ${gwas_pca_eigenvec_file} \
+    ${pca_file} \
     temp \
     ${final_output_dir}
 
