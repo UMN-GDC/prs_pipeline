@@ -136,6 +136,11 @@ if [[ "$ran_ct" == true ]]; then
           --extract "$valid_snp" \
           --allow-no-sex \
           --out "${eval_dir}/CT"
+        # q-score-range names the profile CT.{range_name}.profile; normalize to CT.profile
+        actual_ct_profile=$(ls "${eval_dir}"/CT.*.profile 2>/dev/null | head -1)
+        if [[ -f "$actual_ct_profile" ]]; then
+          cp "$actual_ct_profile" "${eval_dir}/CT.profile"
+        fi
         evaluate "CT" "${eval_dir}/CT"
       fi
     fi
@@ -152,7 +157,7 @@ if [[ "$ran_ldpred2" == true ]]; then
     weights="${ldpred2_base}_${model}_weights.txt"
     if [[ -f "$weights" ]]; then
       plink --bfile "$test_bfile" \
-        --score "$weights" 1 2 4 header \
+        --score "$weights" 1 2 3 header \
         --allow-no-sex \
         --out "${eval_dir}/LDpred2_${model}"
       evaluate "LDpred2_${model}" "${eval_dir}/LDpred2_${model}"
@@ -169,7 +174,7 @@ if [[ "$ran_lassosum2" == true ]]; then
   weights="${lassosum2_base}_weights.txt"
   if [[ -f "$weights" ]]; then
     plink --bfile "$test_bfile" \
-      --score "$weights" 1 2 4 header \
+      --score "$weights" 1 2 3 header \
       --allow-no-sex \
       --out "${eval_dir}/lassosum2"
     evaluate "lassosum2" "${eval_dir}/lassosum2"
