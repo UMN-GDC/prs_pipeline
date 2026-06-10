@@ -244,15 +244,28 @@ EOF
     if [[ "$RUN_PRSice2" == true ]]; then
         echo "[$(date)] $tag Starting PRSice2 Pipeline..."
         local prsice_out="${methods_output}/PRSice2/prs_method"
-        mkdir -p "$prsice_out"
-        bash "${path_repo}/src/run_PRSice2.sh" \
-            "$ss_local" \
-            "$study_sample" \
-            "$binary_flag" \
-            "${output_path}/gwas/study_sample_pheno.txt" \
-            "${methods_output}" \
-            "${path_repo}" \
-            "${prsice_out}"
+        local prsice_log="${methods_output}/logs/PRSice2.log"
+        mkdir -p "$(dirname "$prsice_log")" "$prsice_out"
+        # Redirect PRSice2 output to a dedicated log file; on error dump tail to main log
+        set +e
+        {
+            bash "${path_repo}/src/run_PRSice2.sh" \
+                "$ss_local" \
+                "$study_sample" \
+                "$binary_flag" \
+                "${output_path}/gwas/study_sample_pheno.txt" \
+                "${methods_output}" \
+                "${path_repo}" \
+                "${prsice_out}"
+        } >"$prsice_log" 2>&1
+        prsice_exit=$?
+        set -e
+        if [[ "$prsice_exit" -ne 0 ]]; then
+            echo "[$(date)] $tag PRSice2 FAILED (exit $prsice_exit) — last lines:" >&2
+            tail -50 "$prsice_log" >&2
+        else
+            echo "[$(date)] $tag PRSice2 complete (log: $prsice_log)"
+        fi
     fi
 
     echo "[$(date)] $tag All jobs submitted to background. Waiting..."
