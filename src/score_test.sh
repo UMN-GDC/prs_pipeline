@@ -81,19 +81,47 @@ else
 fi
 
 # --- 2. Phenotype for test samples ---
+align_pheno() {
+  local src="$1"
+  local ref_fam="${test_bfile}.fam"
+  local out="${eval_dir}/pheno.txt"
+  # Detect column count: 3 = "FID IID pheno", 2 = "ID pheno"
+  local ncols
+  ncols=$(awk 'NR==1 {print NF}' "$src")
+  echo "[score_test]   Detected ${ncols}-column phenotype file"
+  # Build lookup by IID; handles both 2-col (ID pheno) and 3+col (FID IID pheno...) formats
+  if [[ "$ncols" -ge 3 ]]; then
+    awk 'NR==FNR {
+         if (FNR==1 && ($1 ~ /^[Ff][Ii][Dd]/ || $2 ~ /[A-Za-z]/)) next
+         pheno[$2]=$3; next
+       }
+       FNR==1 {print "FID\tIID\tphenotype"; next}
+       $2 in pheno {print $1, $2, pheno[$2]}' \
+      OFS="\t" "$src" "$ref_fam" > "$out"
+  else
+    awk 'NR==FNR {
+         if (FNR==1 && ($1 ~ /^[Ff][Ii][Dd]/ || $1 ~ /[A-Za-z]/)) next
+         pheno[$1]=$2; next
+       }
+       FNR==1 {print "FID\tIID\tphenotype"; next}
+       $2 in pheno {print $1, $2, pheno[$2]}' \
+      OFS="\t" "$src" "$ref_fam" > "$out"
+  fi
+  local n
+  n=$(( $(wc -l < "$out") - 1 ))
+  echo "[score_test]   Aligned ${n} samples"
+  # Fallback: if no IIDs matched, use .fam column 6
+  if [[ "$n" -eq 0 ]]; then
+    echo "[score_test]   WARNING: No IID matches — falling back to .fam column 6"
+    awk 'BEGIN{print "FID\tIID\tphenotype"} {print $1, $2, $6}' OFS="\t" "$ref_fam" > "$out"
+    echo "[score_test]   Using $(( $(wc -l < "$out") - 1 )) samples from .fam"
+  fi
+}
+
 if [[ -n "$pheno_file" ]]; then
   echo "[score_test] Using user-provided phenotype file: $pheno_file"
-  # Align phenotype values with test .fam to ensure FID/IID consistency with profile and PCA
-  # Skip header in phenotype file if present; match by IID (column 2) against the .fam
-  awk 'NR==FNR {
-       if (FNR==1 && ($1 ~ /^[Ff][Ii][Dd]/ || $2 ~ /[A-Za-z]/)) next
-       pheno[$2]=$3; next
-     }
-     FNR==1 {print "FID\tIID\tphenotype"; next}
-     $2 in pheno {print $1, $2, pheno[$2]}' \
-    OFS="\t" "$pheno_file" "${test_bfile}.fam" > "${eval_dir}/pheno.txt"
+  align_pheno "$pheno_file"
   pheno_input="${eval_dir}/pheno.txt"
-  echo "[score_test]   Aligned $(( $(wc -l < "${eval_dir}/pheno.txt") - 1 )) samples"
 else
   echo "[score_test] Extracting phenotype from .fam column 6"
   awk 'BEGIN{print "FID\tIID\tphenotype"} {print $1, $2, $6}' OFS="\t" "${test_bfile}.fam" > "${eval_dir}/pheno.txt"
