@@ -60,20 +60,42 @@ gwas_pca_eigenvec_file="/path/to/pca.eigenvec"
 afreq_file="/path/to/sample.afreq"
 ```
 
-| Variable | Description |
-|----------|-------------|
-| `summary_stats_file` | GWAS summary statistics (see [Input File Formats](#input-file-formats) below) |
-| `summary_stats_files` | Comma-separated list for multi-phenotype mode (overrides `summary_stats_file`) |
-| `multi_pheno_file` | Multi-phenotype file with header (see [Input File Formats](#input-file-formats)) |
-| `phenotype_info_file` | External phenotype file (see [Input File Formats](#input-file-formats)); header **auto-detected and prepended if missing** (checks if first field is `FID`/`fid`) |
-| `bim_file_path` | `.bim` file for allele alignment |
-| `study_sample` | PLINK prefix (no extension) for the study cohort |
-| `output_path` | Directory for all results |
-| `path_repo` | Path to the cloned `prs_pipeline` repository |
-| `gwas_pca_eigenvec_file` | PCA eigenvector file for covariates |
-| `afreq_file` | PLINK2 `.afreq` file; **required** for LDpred2/lassosum2 to avoid unreliable MAF computation from genotype matrix |
-| `ld_cache_dir` | Per-chromosome LD matrix cache directory (avoids recomputing on re-runs) |
-| `ld_matrix_dir` | Pre-computed LD matrix directory (from `src/generate_ld_matrix.R`) |
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `summary_stats_file` | yes | GWAS summary statistics (see [Input File Formats](#input-file-formats) below) |
+| `summary_stats_files` | for multi | Comma-separated list for multi-phenotype mode (overrides `summary_stats_file`). Single entry + `multi_pheno_file` also triggers multi-mode |
+| `multi_pheno_file` | for multi | Multi-phenotype file with header (see [Input File Formats](#input-file-formats)) |
+| `phenotype_info_file` | no | External phenotype file (see [Input File Formats](#input-file-formats)); header **auto-detected and prepended if missing** (checks if first field is `FID`/`fid`) |
+| `bim_file_path` | yes | `.bim` file for allele alignment |
+| `study_sample` | yes | PLINK prefix (no extension) for the study cohort |
+| `output_path` | yes | Directory for all results |
+| `path_repo` | yes | Path to the cloned `prs_pipeline` repository |
+| `gwas_pca_eigenvec_file` | no | PCA eigenvector file for covariates |
+| `afreq_file` | **required** for LDpred2/lassosum2 | PLINK2 `.afreq` file; avoids unreliable MAF computation from genotype matrix |
+| `n_total_gwas` | no (default: 31968) | GWAS sample size (used for `n_eff`) |
+| `skip_ss_generation` | no (default: 0) | Set `1` to skip `prepare_sumstats.R` alignment |
+| `ncores` | no (default: 16) | CPU cores for parallel LD computation. Must match Slurm `--cpus-per-task` |
+| `ld_cache_dir` | no | Per-chromosome LD matrix cache directory (avoids recomputing on re-runs) |
+| `ld_matrix_dir` | no | Pre-computed LD matrix directory (from `src/generate_ld_matrix.R`); takes priority over `ld_cache_dir` |
+| `binary_flag` | no (default: F) | Set `T` for binary (case/control) phenotypes, `F` for quantitative |
+| `test_sample` | no | PLINK prefix for held-out test data (triggers `score_test.sh` after training) |
+| `test_pca_eigenvec_file` | no | PCA eigenvector file for test evaluation; if omitted, computed via `plink --pca 6` |
+| `RUN_CT` | no | Set `true` to run C+T |
+| `RUN_LDPRED2` | no | Set `true` to run LDpred2 |
+| `RUN_LASSOSUM2` | no | Set `true` to run lassosum2 |
+| `RUN_PRSice2` | no | Set `true` to run PRSice-2 (requires C+T) |
+
+### Config-based method control
+
+When `RUN_*` variables are defined in the config, no CLI method flags (`-c -l -s -P`) are needed — the config values take precedence (sourced before arg parsing). Example:
+
+```bash
+# Inside config.txt — controls which methods run
+RUN_CT=true
+RUN_LDPRED2=true
+RUN_LASSOSUM2=false
+RUN_PRSice2=true
+```
 
 ## Input File Formats
 
@@ -120,14 +142,16 @@ Sample2	ID002	-0.87	1.12	0.75
 
 The pipeline extracts each named column into individual `study_sample_pheno.txt` files and runs all requested methods per phenotype.
 
-**1:1 matching required:** the number of summary stats files in `summary_stats_files` must equal the number of phenotype value columns (columns 3+). For example, 3 phenotype columns require 3 summary stats files:
+**Trigger conditions:** multi-phenotype mode activates when `summary_stats_files` has ≥2 comma-separated entries OR a single entry combined with `multi_pheno_file`.
+
+**1:1 matching required:** the number of summary stats files must equal the number of phenotype value columns (columns 3+). For example, 3 phenotype columns require 3 summary stats files:
 
 ```bash
 summary_stats_files="/path/to/gwas_A.txt,/path/to/gwas_B.txt,/path/to/gwas_C.txt"
 multi_pheno_file="/path/to/phenotypes.txt"
 ```
 
-The pipeline validates this at runtime and exits with an error if the counts differ.
+The pipeline validates this at runtime and exits with an error if the counts differ. Output goes to `${output_path}/prs_pipeline/<PHENO_NAME>/<METHOD>/`.
 
 ### Study Sample PLINK Files (`study_sample`)
 
@@ -172,14 +196,21 @@ Results are written under `output_path/`:
 ```
 output_path/
   gwas/
-    CT_PRSice2_summary_stat_file.txt
-    study_sample_pheno.txt
+    CT_PRSice2_summary_stat_file.txt    # Aligned summary stats (after prepare_sumstats.R)
+    study_sample_pheno.txt              # Phenotype file
   prs_pipeline/
-    CT/              -- Clumping + Thresholding
+    CT/              -- Clumping + Thresholding results
     LDpred2/         -- Bayesian PRS (infinitesimal + grid models)
     lassosum2/       -- Penalized regression grid results
     PRSice2/         -- PRSice-2 outputs (best, summary, plots)
+    logs/            -- PRSice2.log (redirected here; last 50 lines on failure)
+    test_evaluation/ -- Present only if test_sample was configured
+                       <method>_results.txt, <method>_scores.txt
 ```
+
+**Multi-phenotype** adds a phenotype-name subdirectory: `${output_path}/prs_pipeline/<PHENO_NAME>/<METHOD>/`.
+
+**CPU note:** the sandbox runner Slurm header requests **4 CPUs** while the pipeline defaults to `ncores=16`. Set `ncores` in your config to match `--cpus-per-task` (e.g., `ncores=4`) to avoid CPU oversubscription.
 
 ## Sandbox vs. Production Runner
 
