@@ -22,7 +22,7 @@ study_sample="/projects/standard/gdc/public/prs_methods/data/simulated_1000G/anc
 output_path="/projects/standard/gdc/public/prs_methods/data/simulated_1000G"
 path_repo="/projects/standard/gdc/public/prs_methods/scripts/prs_pipeline"
 n_total_gwas=31968
-gwas_pca_eigenvec_file="/projects/standard/gdc/shared/abcdTest/04-globalAncestry/merged_dataset_pca.eigenvec"
+gwas_pca_eigenvec_file=""
 afreq_file=""
 ncores=16
 ld_cache_dir=""
@@ -189,10 +189,13 @@ run_phenotype_pipeline() {
 study_sample=${study_sample}
 sum_stats_file=${ss_local}
 phenotype_info_file=${output_path}/gwas/study_sample_pheno.txt
-gwas_pca_eigenvec_file=${gwas_pca_eigenvec_file}
 output_path=${methods_output}
 path_prs_pipeline=${path_repo}
 EOF
+        # Only pass PCA file if user explicitly provided one
+        if [[ -n "${gwas_pca_eigenvec_file:-}" ]]; then
+            echo "gwas_pca_eigenvec_file=${gwas_pca_eigenvec_file}" >> "$CT_CONFIG"
+        fi
         bash "${path_repo}/src/run_CT.sh" --c "$CT_CONFIG"
         ) &
     fi
