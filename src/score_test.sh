@@ -83,7 +83,17 @@ fi
 # --- 2. Phenotype for test samples ---
 if [[ -n "$pheno_file" ]]; then
   echo "[score_test] Using user-provided phenotype file: $pheno_file"
-  pheno_input="$pheno_file"
+  # Align phenotype values with test .fam to ensure FID/IID consistency with profile and PCA
+  # Skip header in phenotype file if present; match by IID (column 2) against the .fam
+  awk 'NR==FNR {
+       if (FNR==1 && ($1 ~ /^[Ff][Ii][Dd]/ || $2 ~ /[A-Za-z]/)) next
+       pheno[$2]=$3; next
+     }
+     FNR==1 {print "FID\tIID\tphenotype"; next}
+     $2 in pheno {print $1, $2, pheno[$2]}' \
+    OFS="\t" "$pheno_file" "${test_bfile}.fam" > "${eval_dir}/pheno.txt"
+  pheno_input="${eval_dir}/pheno.txt"
+  echo "[score_test]   Aligned $(( $(wc -l < "${eval_dir}/pheno.txt") - 1 )) samples"
 else
   echo "[score_test] Extracting phenotype from .fam column 6"
   awk 'BEGIN{print "FID\tIID\tphenotype"} {print $1, $2, $6}' OFS="\t" "${test_bfile}.fam" > "${eval_dir}/pheno.txt"
