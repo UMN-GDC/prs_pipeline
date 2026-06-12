@@ -3,3 +3,10 @@ singleprs_version2.sif
 prspipeline_latest.sif
 envs/build.out
 temp_ld/
+temp_ld_lassosum/
+
+prsv2_latest.sif
+sample.afreq
+AGENTS.md
+prs_unified_*.out
+*config.txt

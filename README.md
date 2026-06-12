@@ -224,20 +224,21 @@ A modular SLURM-based pipeline for calculating Polygenic Risk Scores (PRS) using
 **HPC Evnironment**
 * Scheduler: SLURM
 * R Version: 4.4.0+ (OpenBLAS recommended)
-* R Packages: `bigsnpr `, `optparse`, `data.table`, `magrittr  `
+* R Packages: `bigsnpr`, `argparse`, `data.table`, `bigreadr`
 
 **Required Tools**
 * PRSice-2: The executable should be located within your `${path_repo}/src/` directory.
 
 **Summary Statistics File Format**
-The file needs to have a column header and contain the following columns. If there are multiple listed in `{}` that means that any 1 of the options is recognized but the file cannot contain more than 1 of these overlapping columns.
-* {rsid, rs_id, rsids}
-* {A1, alt, a1}
-* {p, pval}
-* {sebeta, beta_se}
-* beta
-* ref
-* chrom
+The file needs a header row and tab separators. At minimum it must contain one of each of the following column groups (any one name per group is recognized):
+* {rsid, rs_id, rsids} — variant identifier
+* {A1, alt, a1} — effect allele
+* {p, pval} — P-value
+* {sebeta, beta_se} — standard error of beta
+* beta — effect size (lowercase only in `prepare_sumstats.R`; downstream R scripts also accept `BETA`/`eff` when `skip_ss_generation=1`)
+* {ref, A2} — reference allele (optional — used for output only)
+
+Chromosome and position are pulled from the BIM file during alignment, so `chrom`/`CHR`/`BP` columns in the sumstats are optional.
 
 ### Usage
 
@@ -251,16 +252,39 @@ sbatch prs_pipeline/run_single_ancestry_PRS_pipeline.sh -c -l -s -P -C config.tx
 #### Flag Reference
 | Flag | Description |
 | -------- | ------- |
-|  `-C <file>` | **Config**: load an external file to override default paths. |
+| `-C <file>` | **Config**: load an external file to override default paths. |
 | `-c` | **C+T**: Run Clumping + Thresholding. |
 | `-l` | **LDpred2**: Run the LDpred2 algorithm (via `bigsnpr`) |
 | `-s` | **lassosum2**: Run the lassosum2 algorithm (via `bigsnpr`) |
 | `-P` | **PRSice2**: Run PRSice-2. Note: Requires `-c` to be active. |
 | `-B` | **Binary**: Use this flag for binary phenotypes (Case/Control). |
-| `-S` | **Skip**: Skip the initial summary stats alignment step (Use with caution). |
+| `-S` | **Skip**: Skip the initial summary stats alignment step (sets `skip_ss_generation=1`). |
 
 ### Configuration
-Instead of modifying the main script, create a `my_project.conf` file to define your data paths:
+Instead of modifying the main script, create a `my_project.conf` file to define your data paths. The config is a shell-readable file sourced by the pipeline. All the following variables are recognized:
+
+| Variable | Required | Description |
+| -------- | -------- | ----------- |
+| `summary_stats_file` | yes | Path to GWAS summary statistics |
+| `bim_file_path` | yes | `.bim` file for allele alignment |
+| `study_sample` | yes | PLINK prefix (no extension) for the target cohort |
+| `output_path` | yes | Directory for all results |
+| `path_repo` | yes | Path to the cloned `prs_pipeline` repository |
+| `n_total_gwas` | no (default: 31968) | Total GWAS sample size (used for `n_eff`) |
+| `afreq_file` | **required** for LDpred2/lassosum2 | PLINK2 `.afreq` file; required for LDpred2 and lassosum2 to avoid unreliable MAF computation from the genotype matrix |
+| `gwas_pca_eigenvec_file` | for C+T | PCA eigenvector file for covariate adjustment |
+| `ld_cache_dir` | no | Directory to cache per-chromosome LD matrices (avoids recomputing on re-runs) |
+| `ncores` | no | CPU cores for parallel LD computation (default: 16) |
+| `skip_ss_generation` | no | Set `1` to skip the initial summary stats alignment step (default: `0`) |
+| `binary_flag` | no | Set `T` for binary (case/control) phenotypes, `F` for quantitative (default: `F`) |
+| `RUN_CT` | no | Set `true` to run C+T |
+| `RUN_LDPRED2` | no | Set `true` to run LDpred2 |
+| `RUN_LASSOSUM2` | no | Set `true` to run lassosum2 |
+| `RUN_PRSice2` | no | Set `true` to run PRSice-2 (requires C+T) |
+
+When `RUN_*` variables are defined in the config, no CLI method flags are needed on the `sbatch` command.
+
+Example config:
 
 ```bash
 # my_project.conf
@@ -268,11 +292,21 @@ summary_stats_file="/path/to/your/gwas_stats.tsv"
 bim_file_path="/path/to/your/genotypes.bim"
 study_sample="/path/to/your/genotype_prefix"
 output_path="/path/to/results"
+path_repo="/path/to/prs_pipeline"
 n_total_gwas=31968
+afreq_file="/path/to/sample.afreq"
+gwas_pca_eigenvec_file="/path/to/pca.eigenvec"
+ld_cache_dir="/path/to/ld_cache"
+ncores=16
+
+RUN_CT=true
+RUN_LDPRED2=true
+RUN_LASSOSUM2=true
+RUN_PRSice2=true
 ```
 Then run:
 ```
-sbatch prs_pipeline/run_single_ancestry_PRS_pipeline.sh -c -l -s -P -C config.txt
+sbatch prs_pipeline/run_single_ancestry_PRS_pipeline.sh -C config.txt
 ```
 
 ### Output Structure
@@ -289,21 +323,26 @@ output_path/
 |       ---- temp/
 |          ----- temp.0.X.profile # Contains the PRS score output. Column of interest is SCORE
 |   --- LDpred2/     # Bayesian PRS results
-|       ---- prs_method_individual_scores.txt # Contains the PRS score output. Column of interest is PRS_inf or PRS_grid depending on biological assumptions
+|       ---- prs_method_individual_scores.txt # PRS scores (columns: PRS_inf, PRS_grid)
+|       ---- prs_method_performance.csv      # R² for inf and grid models
+|       ---- prs_method_grid_plot.png        # Grid search tuning plot
 |   --- lassosum2/   # Penalized regression results
-|       ---- prs_method_grid_params.csv # Contains the PRS score output. Column of interest is "score"
+|       ---- prs_method_grid_params.csv      # Tuning parameters and validation scores
+|       ---- prs_method_final_best_prs.csv   # Best-model PRS (column: Best_PRS_Score)
+|       ---- prs_method_lassosum_plot.png    # Tuning plot
+|       ---- prs_method_full_predictions.csv # All grid-point predictions
 |   --- PRSice2/     # PRSice-2 tables and plots
 |       ---- prs_method/
 |          ----- PRSice2_outputs.best # Contains the PRS score output. Column of interest is PRS
 ```
 
 ### Imporant Notes
-* **Resource Allocation**: The script defaults to **16 CPUs** and **64GB RAM**. Adjust the `#SBATCH` headers if your LD reference panel or genotype file is exceptionally large.
+* **Resource Allocation**: The sandbox runner Slurm header requests **4 CPUs** and **64GB RAM**. The pipeline defaults to `ncores=16` for computation — if using the sandbox runner, increase `--cpus-per-task` or lower `ncores` to avoid oversubscription.
 * **C+T Dependency**: The PRSice-2 implementation in this script relies on the data preparation steps performed during the C+T run. Always include `-c` when using `-P`.
 * **Environment**: Ensure `R_LIBS_USER` in the script points to the library where `bigsnpr` is installed.
 
 ### Troubleshooting
-Memory Errors: If LDpred2 fails, ensure the --mem=64g SLURM header is sufficient for your LD reference panel.
+Memory Errors: If LDpred2 fails, ensure the `--mem=64g` SLURM header is sufficient for your LD reference panel. Increase to 200g+ for large panels.
 Missing Variants: If the aligned summary stats file is empty, check that your .bim file RSIDs match the format in your summary statistics.
 
 ### Original References and Documentation

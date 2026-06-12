@@ -13,13 +13,24 @@ final_output_dir <- args[4]
 
 p.threshold <- c(0.001,0.05,0.1,0.2,0.3,0.4,0.5)
 
-# Read phenotype
-phenotype <- read.table(phenotype_file, header=FALSE)
-colnames(phenotype)=c("FID", "IID", "phenotype")
+# Helper: detect if a file has a header (col 2 of first row has letters → header)
+detect_header <- function(file) {
+  first <- read.table(file, nrows=1, stringsAsFactors=FALSE)
+  grepl("[A-Za-z]", first[1,2])
+}
+
+# Read phenotype (always rename third column to "phenotype" for downstream consistency)
+pheno_has_header <- detect_header(phenotype_file)
+phenotype <- read.table(phenotype_file, header=pheno_has_header)
+colnames(phenotype)[1:3] <- c("FID", "IID", "phenotype")
 
 # Read PCs
-pcs <- read.table(pcs_file, header=FALSE)
-colnames(pcs) <- c("FID","IID", paste0("PC", 1:(ncol(pcs)-2)))
+pcs_has_header <- detect_header(pcs_file)
+pcs <- read.table(pcs_file, header=pcs_has_header)
+colnames(pcs)[1:2] <- c("FID", "IID")
+if (ncol(pcs) > 2) {
+  colnames(pcs)[3:ncol(pcs)] <- paste0("PC", 1:(ncol(pcs)-2))
+}
 
 # Merge phenotype + PCs
 pheno <- merge(phenotype, pcs, by=c("FID","IID"))

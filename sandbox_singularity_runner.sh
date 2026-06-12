@@ -1,12 +1,19 @@
 #!/bin/bash
-# DEPRECATED: Use sandbox_singularity_runner.sh instead (more robust, safer bind-mounts, Slurm-ready).
+#SBATCH --time=20:00:00
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=4
+#SBATCH --mem=64g
+#SBATCH -p medium
+#SBATCH -o prs_unified_%j.out
+#SBATCH --job-name prs_pipeline
+
 # Wrapper script to run PRS pipeline with Singularity container
 # Works on both SLURM HPC and local machines
 
 set -eu
 
 #SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-#SIF_PATH="${SCRIPT_DIR}/singleprs_latest.sif"
+#SIF_PATH="${SCRIPT_DIR}/prsv2_latest.sif"
 ENV_NAME="singlePRS"
 
 usage() {
@@ -42,12 +49,10 @@ run_in_container() {
     shift
     
     singularity exec \
-        --bind "${path_repo}:${path_repo}" \
-        --bind "${binds}" \
-        --bind "/tmp" \
-        --bind "$output_path" \
+        ${binds:+--bind "$binds"} \
+        --bind "/tmp:/tmp" \
         --pwd "${path_repo}" \
-        "${path_repo}/singleprs_latest.sif" \
+        "${path_repo}/prsv2_latest.sif" \
         "$@"
 }
 
@@ -61,19 +66,30 @@ auto_bind() {
                     local path="${line#*=}"
                     path="${path%\"}"
                     path="${path#\"}"
-                    local mount_point="${path%%/*}"
-                    if [[ -n "$mount_point" && ! "$binds" =~ "$mount_point" ]]; then
-                        binds="${binds:+${binds},}${mount_point}"
+                    
+                    if [[ "$path" == /* ]]; then
+                        # Get the top-level directory (e.g., /scratch.global)
+                        local root_dir="/$(echo "$path" | cut -d'/' -f2)"
+                        
+                        # CRITICAL: Only add if the directory exists on the host MSI machine
+                        if [[ -d "$root_dir" ]]; then
+                            if [[ ! "$binds" =~ "$root_dir" ]]; then
+                                binds="${binds:+${binds},}${root_dir}"
+                            fi
+                        else
+                            # Optional: warn the user if their config points to a ghost path
+                            echo "Note: Config references $root_dir, but it doesn't exist on this system. Skipping bind." >&2
+                        fi
                     fi
                     ;;
             esac
         done < "${CONFIG_FILE}"
     fi
-    
     echo "$binds"
 }
 
 PIPELINE_ARGS=""
+BIND_PATHS=""
 
 # Parse own args first to find config
 while [[ $# -gt 0 ]]; do
@@ -95,12 +111,10 @@ while [[ $# -gt 0 ]]; do
 done
 
 
-# Build bind paths
-BIND_PATHS="${BIND_PATHS:-$(auto_bind)}"
-if [[ -n "${CONFIG_FILE:-}" && ! "$BIND_PATHS" =~ "/projects" ]]; then
-    BIND_PATHS="${BIND_PATHS:+${BIND_PATHS},}/projects"
-fi
+# Build bind paths only from existing directories
+DETECTED_BINDS="$(auto_bind)"
+FINAL_BINDS="${BIND_PATHS:-$DETECTED_BINDS}"
 
-# Execute in container
-run_in_container "${BIND_PATHS}" \
+# Execute
+run_in_container "${FINAL_BINDS}" \
     bash "${path_repo}/run_single_ancestry_PRS_pipeline.sh" ${PIPELINE_ARGS}

@@ -5,9 +5,14 @@ binary_flag=$3
 phenotype_info_file=$4
 output_path=$5
 path_repo=$6
+output_prefix=$7   # optional: overrides the default output prefix
 
-final_output=${output_path}/prs_pipeline/PRSice2/prs_method
-mkdir -p $final_output
+if [[ -n "${output_prefix:-}" ]]; then
+    final_output="${output_prefix}"
+else
+    final_output="${output_path}/prs_pipeline/PRSice2/prs_method"
+fi
+mkdir -p "$final_output"
 
 # run PRSice-2 on simulated data--note that this is the temporary data and is unlikely to produce correct results (use this more for formatting purposes)
 PRSice \

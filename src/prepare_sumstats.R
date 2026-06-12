@@ -15,8 +15,8 @@ args <- parser$parse_args()
 
 # 2. LOAD DATA and ensure we have proper inputs
 message("Reading input file: ", args$input)
-# fread2 handles tab-separated files automatically
 df <- bigreadr::fread2(args$input)
+
 target_rsid <- c("rsid", "rs_id", "rsids")
 actual_col <- intersect(target_rsid, names(df))[1]
 if (is.na(actual_col)) {
@@ -34,14 +34,14 @@ if (is.na(a1_present)) {
 pval_options <- c("p", "pval")
 pval_present <- intersect(pval_options, names(df))[1]
 if (is.na(pval_present)) {
-  stop("Error: Could not find an a1 column. Expected one of: ", 
+  stop("Error: Could not find a pval column. Expected one of: ", 
        paste(pval_options, collapse = ", "))
 }
 
 sebeta_options <- c("sebeta", "beta_se")
 sebeta_present <- intersect(sebeta_options, names(df))[1]
 if (is.na(sebeta_present)) {
-  stop("Error: Could not find an a1 column. Expected one of: ", 
+  stop("Error: Could not find a sebeta column. Expected one of: ", 
        paste(sebeta_options, collapse = ", "))
 }
 
@@ -58,30 +58,19 @@ df <- df %>%
 message("Reading BIM file: ", args$bim)
 bim <- bigreadr::fread2(args$bim, select = c(1, 2, 4, 5, 6))
 colnames(bim) <- c("bim.chr", "rsid", "bim.pos", "bim.a1", "bim.a0")
-head(bim)
 
 # Cleaning files
 message("Cleaning RSID columns for matching...")
 df <- df %>%
   mutate(
-    # 1. Take only the first ID if there's a comma (e.g., "rs1,rs2" -> "rs1")
     rsid = sub(",.*", "", rsid),
-    # 2. Remove any accidental whitespace
     rsid = trimws(rsid)
   )
 
-# Clean the BIM RSIDs (just in case)
 bim <- bim %>%
   mutate(rsid = trimws(rsid))
 
-message("Aligning alleles by RSID...")
-joined_df <- inner_join(df, bim, by = "rsid")
-
-message("Rows after cleaning and joining: ", nrow(joined_df))
-
-message("Checking the rsid columns")
-head(df$rsid)
-head(bim$rsid)
+message("Aligning alleles by RSID and processing...")
 
 processed_df <- df %>%
   # Join with BIM to ensure genomic coordinates match your genotypes
@@ -97,7 +86,7 @@ processed_df <- df %>%
     a1 = alt,
     a0 = ifelse(a1 == bim.a1, bim.a0, bim.a1),
 
-    # Ensure P-value is present (using your pval column)
+    # Ensure P-value is present
     CHR = as.integer(bim.chr),
     BP = as.integer(bim.pos),
     P = pval
@@ -115,7 +104,11 @@ processed_df <- df %>%
     n_eff = n_eff
   ) %>%
   # Remove any rows where n_eff calculation resulted in Inf or NA due to AF=0 or 1
-  filter(is.finite(n_eff))
+  filter(is.finite(n_eff)) %>%
+  # CRITICAL FIX: Drop duplicate variants so PLINK --score doesn't crash
+  distinct(SNP, .keep_all = TRUE)
+
+message("Rows after cleaning, joining, and deduplication: ", nrow(processed_df))
 
 # 4. SAVE OUTPUT
 message("Writing cleaned stats to: ", args$output)
@@ -125,4 +118,4 @@ write.table(processed_df,
             quote = FALSE, 
             row.names = FALSE)
 
-message("Done! Processed ", nrow(processed_df), " SNPs.")
+message("Done! Processed ", nrow(processed_df), " unique SNPs.")
