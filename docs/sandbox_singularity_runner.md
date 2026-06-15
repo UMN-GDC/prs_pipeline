@@ -11,7 +11,7 @@ The script:
 
 All dependencies (R 4.3.0, bigsnpr, PLINK, PRSice-2, etc.) live inside the container — nothing needs to be installed on the host except Singularity/Apptainer.
 
-**PRSice-2 test evaluation** differs from C+T/LDpred2/lassosum2: the pipeline applies training-derived parameters (SNP set from PLINK clumping + best p-value threshold from PRSice2 `.prsice`) to test data via PRSice2 itself (`--no-clump --extract --fastscore --bar-levels --no-regress`), rather than re-running PRSice2 threshold search. This uses the official PRSice2 scoring workflow and prevents model selection leak from test data.
+**PRSice-2 test evaluation** differs from C+T/LDpred2/lassosum2: the pipeline applies training-derived parameters (SNP set from PLINK clumping + best p-value threshold from PRSice2 `.prsice` / `.summary`) to test data via PRSice2 itself (`--no-clump --extract --fastscore --bar-levels --no-regress`), rather than re-running PRSice2 threshold search. Threshold is found by column name (`grep("Threshold|R2")`) to handle format variations across PRSice2 versions (`.prsice` has 8 columns: `Pheno Set Threshold R2 P Coefficient Standard.Error Num_SNP`). Falls back to `.summary` if `.prsice` has no data. Uses official PRSice2 scoring workflow and prevents model selection leak from test data.
 
 ## Prerequisites
 
@@ -204,7 +204,7 @@ output_path/
     CT/              -- Clumping + Thresholding results
     LDpred2/         -- Bayesian PRS (infinitesimal + grid models)
     lassosum2/       -- Penalized regression grid results
-    PRSice2/         -- PRSice-2 outputs (best, summary, plots)
+    PRSice2/         -- PRSice-2 outputs (best, summary, plots, .snps for test scoring)
     logs/            -- PRSice2.log (redirected here; last 50 lines on failure)
     test_evaluation/ -- Present only if test_sample was configured
                        <method>_results.txt, <method>_scores.txt
