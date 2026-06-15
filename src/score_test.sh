@@ -232,8 +232,15 @@ if [[ "$ran_prsice2" == true ]]; then
   elif [[ ! -f "$prsice2_snps" ]]; then
     echo "[score_test] WARNING: PRSice2 SNP list not found: $prsice2_snps — skipping PRSice2"
   else
-    # Find best threshold (max R2) from .prsice — same approach as C+T
-    best_p=$(awk 'NR>1 && $3+0 > max {max=$3; best=$2} END {print best}' "$prsice2_prsice")
+    # Find best threshold (max R2) from .prsice using R (robust to column-count variation)
+    best_p=$(Rscript --vanilla -e '
+      f <- commandArgs(trailingOnly = TRUE)[1]
+      d <- read.table(f, header = TRUE)
+      nc <- ncol(d)
+      r2_col <- if (nc >= 7) 3 else 2
+      th_col <- if (nc >= 7) 2 else 1
+      if (nrow(d) > 0) cat(as.character(d[which.max(d[[r2_col]]), th_col]))
+    ' "$prsice2_prsice")
     if [[ -z "$best_p" || ! "$best_p" =~ ^[0-9] ]]; then
       echo "[score_test] WARNING: Could not parse best p-value from $prsice2_prsice — skipping PRSice2"
     else
