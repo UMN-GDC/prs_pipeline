@@ -232,17 +232,38 @@ if [[ "$ran_prsice2" == true ]]; then
   elif [[ ! -f "$prsice2_snps" ]]; then
     echo "[score_test] WARNING: PRSice2 SNP list not found: $prsice2_snps — skipping PRSice2"
   else
-    # Find best threshold (max R2) from .prsice using R (robust to column-count variation)
+    # Diagnose .prsice content
+    prsice2_nlines=$(wc -l < "$prsice2_prsice")
+    prsice2_header=$(head -1 "$prsice2_prsice")
+    prsice2_ncols=$(awk '{print NF; exit}' "$prsice2_prsice")
+    echo "[score_test]   .prsice: ${prsice2_nlines} lines, ${prsice2_ncols} cols, header: ${prsice2_header}"
+    # Try .prsice (max R2) and .summary (single best row) as fallback
     best_p=$(Rscript --vanilla -e '
       f <- commandArgs(trailingOnly = TRUE)[1]
-      d <- read.table(f, header = TRUE)
-      nc <- ncol(d)
-      r2_col <- if (nc >= 7) 3 else 2
-      th_col <- if (nc >= 7) 2 else 1
-      if (nrow(d) > 0) cat(as.character(d[which.max(d[[r2_col]]), th_col]))
+      d <- tryCatch(read.table(f, header = TRUE), error = function(e) NULL)
+      if (!is.null(d) && nrow(d) > 0) {
+        nc <- ncol(d)
+        r2_col <- if (nc >= 7) 3 else 2
+        th_col <- if (nc >= 7) 2 else 1
+        cat(as.character(d[which.max(d[[r2_col]]), th_col]))
+      }
     ' "$prsice2_prsice")
     if [[ -z "$best_p" || ! "$best_p" =~ ^[0-9] ]]; then
-      echo "[score_test] WARNING: Could not parse best p-value from $prsice2_prsice — skipping PRSice2"
+      prsice2_summary="${prsice2_base}/PRSice2_outputs.summary"
+      echo "[score_test]   .prsice gave no threshold — trying .summary"
+      if [[ -f "$prsice2_summary" ]]; then
+        best_p=$(Rscript --vanilla -e '
+          f <- commandArgs(trailingOnly = TRUE)[1]
+          d <- tryCatch(read.table(f, header = TRUE), error = function(e) NULL)
+          if (!is.null(d) && nrow(d) > 0) {
+            nc <- ncol(d)
+            cat(as.character(d[1, if (nc >= 7) 2 else 1]))
+          }
+        ' "$prsice2_summary")
+      fi
+    fi
+    if [[ -z "$best_p" || ! "$best_p" =~ ^[0-9] ]]; then
+      echo "[score_test] WARNING: Could not parse best p-value from .prsice or .summary — skipping PRSice2"
     else
       echo "[score_test]   Best PRSice2 p-value threshold from training: $best_p"
       # Score test data using PRSice2 with training-derived parameters (per official docs)
