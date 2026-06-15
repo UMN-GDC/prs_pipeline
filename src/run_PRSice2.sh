@@ -23,3 +23,18 @@ PRSice \
     --stat beta \
     --beta \
     --out ${final_output}/PRSice2_outputs
+
+# Generate clumped SNP list for test evaluation (used by score_test.sh)
+# PLINK clumping with same default parameters as PRSice2 / C+T (r2=0.1, kb=250)
+plink \
+    --bfile "${study_sample}" \
+    --clump-p1 1 \
+    --clump-r2 0.1 \
+    --clump-kb 250 \
+    --clump "${summary_stats_file}" \
+    --clump-snp-field SNP \
+    --clump-field P \
+    --allow-no-sex \
+    --out "${final_output}/PRSice2_clump" 2>/dev/null
+
+awk 'NR!=1{print $3}' "${final_output}/PRSice2_clump.clumped" > "${final_output}/PRSice2_outputs.snps" 2>/dev/null || true

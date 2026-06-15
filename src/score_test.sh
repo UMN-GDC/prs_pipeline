@@ -224,18 +224,90 @@ fi
 # --- PRSice2 ---
 if [[ "$ran_prsice2" == true ]]; then
   echo "[score_test] Evaluating PRSice2 on test data..."
-  prsice2_out="${eval_dir}/PRSice2"
-  mkdir -p "$prsice2_out"
-  PRSice \
-    --base "$sumstats" \
-    --target "$test_bfile" \
-    --binary-target "$binary_flag" \
-    --pheno "$pheno_input" \
-    --beta \
-    --stat beta \
-    --out "${prsice2_out}/PRSice2_outputs" 2>/dev/null || \
-    echo "[score_test] WARNING: PRSice2 failed or not found in PATH"
-  echo "[score_test]   PRSice2 output: ${prsice2_out}/PRSice2_outputs.*"
+  prsice2_base="${train_out_dir}/PRSice2/prs_method"
+  prsice2_prsice="${prsice2_base}/PRSice2_outputs.prsice"
+  prsice2_snps="${prsice2_base}/PRSice2_outputs.snps"
+  if [[ ! -f "$prsice2_prsice" ]]; then
+    echo "[score_test] WARNING: PRSice2 results not found: $prsice2_prsice — skipping PRSice2"
+  elif [[ ! -f "$prsice2_snps" ]]; then
+    echo "[score_test] WARNING: PRSice2 SNP list not found: $prsice2_snps — skipping PRSice2"
+  else
+    # Diagnose .prsice content
+    prsice2_nlines=$(wc -l < "$prsice2_prsice")
+    prsice2_header=$(head -1 "$prsice2_prsice")
+    prsice2_ncols=$(awk '{print NF; exit}' "$prsice2_prsice")
+    echo "[score_test]   .prsice: ${prsice2_nlines} lines, ${prsice2_ncols} cols, header: ${prsice2_header}"
+    # Try .prsice (max R2) and .summary (single best row) as fallback
+    best_p=$(Rscript --vanilla -e '
+      f <- commandArgs(trailingOnly = TRUE)[1]
+      d <- tryCatch(read.table(f, header = TRUE), error = function(e) NULL)
+      if (!is.null(d) && nrow(d) > 0) {
+        r2 <- grep("^R2$", colnames(d), ignore.case = TRUE)[1]
+        th <- grep("Threshold", colnames(d), ignore.case = TRUE)[1]
+        if (!is.na(r2) && !is.na(th))
+          cat(as.character(d[which.max(d[[r2]]), th]))
+      }
+    ' "$prsice2_prsice")
+    if [[ -z "$best_p" || ! "$best_p" =~ ^[0-9] ]]; then
+      prsice2_summary="${prsice2_base}/PRSice2_outputs.summary"
+      echo "[score_test]   .prsice gave no threshold — trying .summary"
+      if [[ -f "$prsice2_summary" ]]; then
+        best_p=$(Rscript --vanilla -e '
+          f <- commandArgs(trailingOnly = TRUE)[1]
+          d <- tryCatch(read.table(f, header = TRUE), error = function(e) NULL)
+          if (!is.null(d) && nrow(d) > 0) {
+            th <- grep("Threshold", colnames(d), ignore.case = TRUE)[1]
+            if (!is.na(th)) cat(as.character(d[1, th]))
+          }
+        ' "$prsice2_summary")
+      fi
+    fi
+    if [[ -z "$best_p" || ! "$best_p" =~ ^[0-9] ]]; then
+      echo "[score_test] WARNING: Could not parse best p-value from .prsice or .summary — skipping PRSice2"
+    else
+      echo "[score_test]   Best PRSice2 p-value threshold from training: $best_p"
+      # Score test data using PRSice2 with training-derived parameters (per official docs)
+      # --no-clump: use pre-clumped SNPs from training
+      # --extract: restrict to training SNP list
+      # --fastscore + --bar-levels: PRS only at training's best threshold
+      # --no-regress: output PRS without regression on test data
+      prsice2_test_out="${eval_dir}/PRSice2"
+      mkdir -p "$prsice2_test_out"
+      PRSice \
+        --base "$sumstats" \
+        --target "$test_bfile" \
+        --binary-target "${binary_flag:-F}" \
+        --beta \
+        --stat beta \
+        --score avg \
+        --no-clump \
+        --extract "$prsice2_snps" \
+        --bar-levels "$best_p" \
+        --fastscore \
+        --no-regress \
+        --out "${prsice2_test_out}/PRSice2_test" 2>/dev/null
+      if [[ -f "${prsice2_test_out}/PRSice2_test.best" ]]; then
+        awk 'NR==1 {print "FID\tIID\tSCORE"} NR>1 {print $1"\t"$2"\t"$3}' \
+          "${prsice2_test_out}/PRSice2_test.best" > "${eval_dir}/PRSice2.profile"
+        evaluate "PRSice2" "${eval_dir}/PRSice2"
+      else
+        echo "[score_test] WARNING: PRSice2 .best not found — falling back to PLINK scoring"
+        echo "${best_p} 0 ${best_p}" > "${eval_dir}/PRSice2_best_range.txt"
+        awk 'NR==1 {print "SNP pvalue"; next} {print $1, $8}' OFS="\t" "$sumstats" > "${eval_dir}/PRSice2_SNP.pvalue"
+        plink --bfile "$test_bfile" \
+          --score "$sumstats" 1 4 6 header \
+          --q-score-range "${eval_dir}/PRSice2_best_range.txt" "${eval_dir}/PRSice2_SNP.pvalue" \
+          --extract "$prsice2_snps" \
+          --allow-no-sex \
+          --out "${eval_dir}/PRSice2"
+        actual_prsice2_profile=$(ls "${eval_dir}"/PRSice2.*.profile 2>/dev/null | head -1)
+        if [[ -f "$actual_prsice2_profile" ]]; then
+          cp "$actual_prsice2_profile" "${eval_dir}/PRSice2.profile"
+        fi
+        evaluate "PRSice2" "${eval_dir}/PRSice2"
+      fi
+    fi
+  fi
 fi
 
 echo "[score_test] Done. Results in: $eval_dir"

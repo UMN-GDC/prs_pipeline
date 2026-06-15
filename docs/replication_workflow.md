@@ -166,6 +166,10 @@ ld_cache_dir="/path/to/ld_cache"                 # Cache per-chromosome LD matri
 gwas_pca_eigenvec_file="/path/to/pca.eigenvec"  # if using PCA covariates
 afreq_file="/path/to/abcd_EUR_final.afreq"       # REQUIRED for LDpred2 and lassosum2
 
+# Test evaluation (optional)
+test_sample="/path/to/abcd_EUR_val"                # PLINK prefix for held-out test data
+test_pca_eigenvec_file="/path/to/val_pca.eigenvec" # PCA for test sample (optional; computed if omitted)
+
 # Method flags — these control which methods run, no -c -l -s -P flags needed on CLI
 RUN_CT=true
 RUN_LDPRED2=true
@@ -187,6 +191,8 @@ RUN_PRSice2=true
 | `ncores` | no (default: 16) | Number of CPU cores for parallel LD computation. Match to Slurm `--cpus-per-task` |
 | `ld_cache_dir` | no | Directory for cached per-chromosome LD matrices. If the cache exists, LD loading takes seconds instead of hours. Delete and re-run to regenerate if inputs change |
 | `skip_ss_generation` | no (default: 0) | Set to `0` (default) to let the pipeline run `prepare_sumstats.R` inside the container; set to `1` if you ran it manually |
+| `test_sample` | no | PLINK prefix (no extension) for held-out test data. When provided, triggers `score_test.sh` to evaluate all trained methods on this sample |
+| `test_pca_eigenvec_file` | no | PCA eigenvector file for test sample; computed via `plink --pca 6` if omitted |
 | `phenotype_info_file` | no | External phenotype file (FID IID value). Header auto-added if missing |
 
 ### Method config
@@ -217,14 +223,37 @@ No CLI method flags (`-c -l -s -P`) are needed — the config file's `RUN_CT`, `
 ```
 ${output_path}/
   gwas/
-    CT_PRSice2_summary_stat_file.txt
-    study_sample_pheno.txt
+    CT_PRSice2_summary_stat_file.txt    # Aligned summary stats
+    study_sample_pheno.txt              # Phenotype file
   prs_pipeline/
-    CT/           Clumping + Thresholding
-    LDpred2/      Bayesian PRS (inf + grid)
-    lassosum2/    Penalized regression
-    PRSice2/      PRSice-2 results
+    CT/              -- Clumping + Thresholding results
+    LDpred2/         -- Bayesian PRS (inf + grid)
+    lassosum2/       -- Penalized regression
+    PRSice2/         -- PRSice-2 results (best, summary, plots, .snps for test scoring)
+    logs/            -- PRSice2.log (redirected here)
+    test_evaluation/ -- Present only if test_sample was configured
+                       <method>_results.txt, <method>_scores.txt
 ```
+
+## 7. Test Evaluation
+
+When `test_sample` is set in the config, the pipeline runs `src/score_test.sh` after all training methods complete. It scores the held-out test data using training-derived parameters and computes R² adjusted for PCs.
+
+### Method-specific scoring
+
+| Method | Approach |
+|--------|----------|
+| **C+T** | Best p-value threshold selected from `CT_prs_results.txt` (max R² in training). Test data scored via PLINK `--score` + `--q-score-range` with that threshold. |
+| **LDpred2** | Weights file `*_weights.txt` (SNP, A1, BETA) applied via PLINK `--score`. Both `inf` and `grid` models evaluated. |
+| **lassosum2** | Same as LDpred2 — PLINK `--score` on `*_weights.txt`. |
+| **PRSice2** | SNP set from PLINK clumping in `run_PRSice2.sh` (`PRSice2_outputs.snps`), best p-value threshold from `.prsice` (max R²). Test data scored via PRSice2 itself (`--no-clump --extract --fastscore --bar-levels --no-regress`) to avoid model selection on test data. Falls back to `.summary` if `.prsice` has no data. |
+
+### Output
+
+For each method, two files are written to `prs_pipeline/test_evaluation/`:
+
+- `<method>_results.txt` — R², P-value, BETA, SE from PC-adjusted regression
+- `<method>_scores.txt` — Per-sample PRS scores (FID, IID, SCORE)
 
 ## Awk Cheat Sheet for Data Prep
 
