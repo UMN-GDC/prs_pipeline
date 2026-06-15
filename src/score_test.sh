@@ -242,10 +242,10 @@ if [[ "$ran_prsice2" == true ]]; then
       f <- commandArgs(trailingOnly = TRUE)[1]
       d <- tryCatch(read.table(f, header = TRUE), error = function(e) NULL)
       if (!is.null(d) && nrow(d) > 0) {
-        nc <- ncol(d)
-        r2_col <- if (nc >= 7) 3 else 2
-        th_col <- if (nc >= 7) 2 else 1
-        cat(as.character(d[which.max(d[[r2_col]]), th_col]))
+        r2 <- grep("^R2$", colnames(d), ignore.case = TRUE)[1]
+        th <- grep("Threshold", colnames(d), ignore.case = TRUE)[1]
+        if (!is.na(r2) && !is.na(th))
+          cat(as.character(d[which.max(d[[r2]]), th]))
       }
     ' "$prsice2_prsice")
     if [[ -z "$best_p" || ! "$best_p" =~ ^[0-9] ]]; then
@@ -256,8 +256,8 @@ if [[ "$ran_prsice2" == true ]]; then
           f <- commandArgs(trailingOnly = TRUE)[1]
           d <- tryCatch(read.table(f, header = TRUE), error = function(e) NULL)
           if (!is.null(d) && nrow(d) > 0) {
-            nc <- ncol(d)
-            cat(as.character(d[1, if (nc >= 7) 2 else 1]))
+            th <- grep("Threshold", colnames(d), ignore.case = TRUE)[1]
+            if (!is.na(th)) cat(as.character(d[1, th]))
           }
         ' "$prsice2_summary")
       fi
