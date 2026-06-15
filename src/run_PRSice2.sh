@@ -22,4 +22,5 @@ PRSice \
     --pheno ${phenotype_info_file} \
     --stat beta \
     --beta \
+    --print-snp \
     --out ${final_output}/PRSice2_outputs
