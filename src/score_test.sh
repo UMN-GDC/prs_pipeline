@@ -225,36 +225,59 @@ fi
 if [[ "$ran_prsice2" == true ]]; then
   echo "[score_test] Evaluating PRSice2 on test data..."
   prsice2_base="${train_out_dir}/PRSice2/prs_method"
-  prsice2_summary="${prsice2_base}/PRSice2_outputs.summary"
+  prsice2_prsice="${prsice2_base}/PRSice2_outputs.prsice"
   prsice2_snps="${prsice2_base}/PRSice2_outputs.snps"
-  if [[ ! -f "$prsice2_summary" ]]; then
-    echo "[score_test] WARNING: PRSice2 summary not found: $prsice2_summary — skipping PRSice2"
+  if [[ ! -f "$prsice2_prsice" ]]; then
+    echo "[score_test] WARNING: PRSice2 results not found: $prsice2_prsice — skipping PRSice2"
   elif [[ ! -f "$prsice2_snps" ]]; then
     echo "[score_test] WARNING: PRSice2 SNP list not found: $prsice2_snps — skipping PRSice2"
   else
-    # Parse best threshold from training PRSice2 .summary (header + 1 data row; col 2 = Threshold)
-    best_p=$(awk 'NR==2 {print $2}' "$prsice2_summary")
+    # Find best threshold (max R2) from .prsice — same approach as C+T
+    best_p=$(awk 'NR>1 && $3+0 > max {max=$3; best=$2} END {print best}' "$prsice2_prsice")
     if [[ -z "$best_p" || ! "$best_p" =~ ^[0-9] ]]; then
-      echo "[score_test] WARNING: Could not parse best p-value from $prsice2_summary — skipping PRSice2"
+      echo "[score_test] WARNING: Could not parse best p-value from $prsice2_prsice — skipping PRSice2"
     else
       echo "[score_test]   Best PRSice2 p-value threshold from training: $best_p"
-      # Single-range file at best threshold
-      echo "${best_p} 0 ${best_p}" > "${eval_dir}/PRSice2_best_range.txt"
-      # SNP.pvalue from sumstats (col 1 = SNP, col 8 = P)
-      awk 'NR==1 {print "SNP pvalue"; next} {print $1, $8}' OFS="\t" "$sumstats" > "${eval_dir}/PRSice2_SNP.pvalue"
-      # Score test data using training-derived SNP set + threshold (mirrors C+T approach)
-      plink --bfile "$test_bfile" \
-        --score "$sumstats" 1 4 6 header \
-        --q-score-range "${eval_dir}/PRSice2_best_range.txt" "${eval_dir}/PRSice2_SNP.pvalue" \
+      # Score test data using PRSice2 with training-derived parameters (per official docs)
+      # --no-clump: use pre-clumped SNPs from training
+      # --extract: restrict to training SNP list
+      # --fastscore + --bar-levels: PRS only at training's best threshold
+      # --no-regress: output PRS without regression on test data
+      prsice2_test_out="${eval_dir}/PRSice2"
+      mkdir -p "$prsice2_test_out"
+      PRSice \
+        --base "$sumstats" \
+        --target "$test_bfile" \
+        --binary-target "${binary_flag:-F}" \
+        --beta \
+        --stat beta \
+        --score avg \
+        --no-clump \
         --extract "$prsice2_snps" \
-        --allow-no-sex \
-        --out "${eval_dir}/PRSice2"
-      # Normalize profile name: PLINK names it PRSice2.{best_p}.profile
-      actual_prsice2_profile=$(ls "${eval_dir}"/PRSice2.*.profile 2>/dev/null | head -1)
-      if [[ -f "$actual_prsice2_profile" ]]; then
-        cp "$actual_prsice2_profile" "${eval_dir}/PRSice2.profile"
+        --bar-levels "$best_p" \
+        --fastscore \
+        --no-regress \
+        --out "${prsice2_test_out}/PRSice2_test" 2>/dev/null
+      if [[ -f "${prsice2_test_out}/PRSice2_test.best" ]]; then
+        awk 'NR==1 {print "FID\tIID\tSCORE"} NR>1 {print $1"\t"$2"\t"$3}' \
+          "${prsice2_test_out}/PRSice2_test.best" > "${eval_dir}/PRSice2.profile"
+        evaluate "PRSice2" "${eval_dir}/PRSice2"
+      else
+        echo "[score_test] WARNING: PRSice2 .best not found — falling back to PLINK scoring"
+        echo "${best_p} 0 ${best_p}" > "${eval_dir}/PRSice2_best_range.txt"
+        awk 'NR==1 {print "SNP pvalue"; next} {print $1, $8}' OFS="\t" "$sumstats" > "${eval_dir}/PRSice2_SNP.pvalue"
+        plink --bfile "$test_bfile" \
+          --score "$sumstats" 1 4 6 header \
+          --q-score-range "${eval_dir}/PRSice2_best_range.txt" "${eval_dir}/PRSice2_SNP.pvalue" \
+          --extract "$prsice2_snps" \
+          --allow-no-sex \
+          --out "${eval_dir}/PRSice2"
+        actual_prsice2_profile=$(ls "${eval_dir}"/PRSice2.*.profile 2>/dev/null | head -1)
+        if [[ -f "$actual_prsice2_profile" ]]; then
+          cp "$actual_prsice2_profile" "${eval_dir}/PRSice2.profile"
+        fi
+        evaluate "PRSice2" "${eval_dir}/PRSice2"
       fi
-      evaluate "PRSice2" "${eval_dir}/PRSice2"
     fi
   fi
 fi

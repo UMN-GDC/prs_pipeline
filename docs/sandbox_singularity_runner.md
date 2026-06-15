@@ -11,7 +11,7 @@ The script:
 
 All dependencies (R 4.3.0, bigsnpr, PLINK, PRSice-2, etc.) live inside the container — nothing needs to be installed on the host except Singularity/Apptainer.
 
-**PRSice-2 test evaluation** differs from C+T/LDpred2/lassosum2: the pipeline applies training-derived parameters (SNP set from PLINK clumping + best p-value threshold from PRSice2 `.summary`) to test data via PLINK `--score` + `--extract`, rather than re-running PRSice2 from scratch. This mirrors the C+T evaluation strategy and prevents model selection leak from test data.
+**PRSice-2 test evaluation** differs from C+T/LDpred2/lassosum2: the pipeline applies training-derived parameters (SNP set from PLINK clumping + best p-value threshold from PRSice2 `.prsice`) to test data via PRSice2 itself (`--no-clump --extract --fastscore --bar-levels --no-regress`), rather than re-running PRSice2 threshold search. This uses the official PRSice2 scoring workflow and prevents model selection leak from test data.
 
 ## Prerequisites
 
