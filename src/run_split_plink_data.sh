@@ -82,16 +82,20 @@ done
 
 
 # Load environments / modules
-# module load R/4.4.0-openblas-rocky8
-module load plink
-module load plink/2.00-alpha-091019
+# Inside the Singularity container, plink/plink2/python are already in PATH
+if [[ -z "${SINGULARITY_CONTAINER:-}" ]]; then
+    module load plink
+    module load plink/2.00-alpha-091019
+fi
 
 base_location=$(dirname "$plink_file_anc1")
 mkdir -p "${base_location}/randomization_ids_anc1"
 mkdir -p "${base_location}/randomization_ids_anc2"
 
 # Split phenotype / plink files
-source /projects/standard/gdc/public/envs/load_miniconda3.sh
+if [[ -z "${SINGULARITY_CONTAINER:-}" ]]; then
+    source /projects/standard/gdc/public/envs/load_miniconda3.sh
+fi
 log "Splitting plink data for "$plink_file_anc1""
 if [ "${no_plink}" -eq 1 ]; then
   python "${path_to_repo}/src/split_plink_samples.py" "${plink_file_anc1}" \
@@ -130,8 +134,10 @@ else
   mv "${base_location}"/*samples.txt "${base_location}/randomization_ids_anc2"
 fi
 
-conda deactivate
-conda deactivate
+if [[ -z "${SINGULARITY_CONTAINER:-}" ]]; then
+    conda deactivate
+    conda deactivate
+fi
 
 
 if [[ "${valid_percent}" -gt 0 ]]; then
