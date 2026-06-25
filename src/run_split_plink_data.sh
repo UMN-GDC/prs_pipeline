@@ -16,8 +16,8 @@ plink_file_anc1="/projects/standard/gdc/public/prs_methods/data/test/sim_1/AFR_s
 plink_file_anc2="/projects/standard/gdc/public/prs_methods/data/test/sim_1/EUR_simulation_study_sample"                     # training ancestry
 
 train_percent=50
-valid_percent=20
-test_percent=30
+valid_percent=0
+test_percent=50
 rand_seed=42
 no_plink=0
 path_to_repo=/projects/standard/gdc/public/prs_methods/scripts/prs_pipeline # place the code is located
@@ -30,25 +30,29 @@ usage() {
   cat <<EOF
 Usage: $0 [options]
 
+Split PLINK files into train/val/test subsets. When validation percent is 0
+(default), produces a 2-way train/test split instead.
+
 Options:
   -1 <plink_file_anc1>      Full path to target ancestry plink files (default: ${plink_file_anc1})
   -2 <plink_file_anc2>      Full path to training ancestry plink files  (default: ${plink_file_anc2})
   -r <repo_path>            Path to prs_pipeline repo (default: ${path_to_repo})
   -t <train_percent>        Percent of data for training (default: 50)
-  -T <testing_percent>      Percent of data for testing (default: 20)
-  -v <validation_percent>   Percent of data for validation (default: 30)
-  -S <seed>                 Randomization seed (default:42)
-  -N <no_plink>             Include flag to skip generating plink separated files (default: set to generate split plink files). 
-  -h                        show this help and exit
+  -v <validation_percent>   Percent of data for validation (default: 0; set >0 for 3-way split)
+  -T <test_percent>         Percent of data for testing (default: 50)
+  -S <seed>                 Randomization seed (default: 42)
+  -N                        Skip generating PLINK separated files (sample lists only)
+  -h                        Show this help and exit
 
-Example:
-  bash prs_pipeline/src/run_split_plink_data.sh -1 /projects/standard/gdc/public/prs_methods/data/test/sim_1/AFR_simulation_study_sample -2 /projects/standard/gdc/public/prs_methods/data/test/sim_1/EUR_simulation_study_sample -t 40 -T 30 -v 30 -S 40
+Examples:
+  2-way split (train/test, default):
+    bash $0 -1 /path/to/AFR_study_sample -2 /path/to/EUR_study_sample
 
-  Using default settings but skipping generation of separated files
-    bash prs_pipeline/src/run_split_plink_data.sh -N
-  
-  Small dataset example
-    bash run_split_plink_data.sh -1 /projects/standard/gdc/public/prs_methods/data/simulated_1000G/AFR_simulation_study_sample -2 /projects/standard/gdc/public/prs_methods/data/simulated_1000G/EUR_simulation_study_sample
+  3-way split (train/val/test):
+    bash $0 -1 /path/to/AFR_study_sample -2 /path/to/EUR_study_sample -t 70 -v 15 -T 15
+
+  Sample lists only (no PLINK file generation):
+    bash $0 -1 /path/to/AFR_study_sample -2 /path/to/EUR_study_sample -N
 EOF
   exit 1
 }
@@ -130,8 +134,9 @@ conda deactivate
 conda deactivate
 
 
-echo "Finished generating inputs with the following parameters  
-training model: ${train_percent}%,
-validation model: ${valid_percent}%, 
-testing model: ${test_percent}% "
+if [[ "${valid_percent}" -gt 0 ]]; then
+  echo "Finished generating inputs (3-way split): train=${train_percent}%, val=${valid_percent}%, test=${test_percent}%"
+else
+  echo "Finished generating inputs (2-way split): train=${train_percent}%, test=${test_percent}%"
+fi
 

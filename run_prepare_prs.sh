@@ -25,8 +25,8 @@ Path_out="/projects/standard/gdc/public/prs_methods/data/test/sim_2"
 # For customization
 gwas_number=120000
 train_percent=50
-valid_percent=20
-test_percent=30
+valid_percent=0
+test_percent=50
 rand_seed=42
 skip_split_generation=0 # Values greater than 0 skip generation of plink data splits
 
@@ -46,9 +46,9 @@ Options:
   -P <P_pca>                Full path to the pca or covariate file for use in gwas (default: ${p_pca}).
   -R <repo_path>            Path to prs_pipeline repo (default: ${path_to_repo})
   -n <gwas_number>          Amount of data for GWAS (default: 120000)
-  -t <train_percent>        Training percent as an integer to split study data into (default 50)
-  -v <valid_percent>        Validation percent as an integer to split study data into (default 20)
-  -T <test_percent>         Testing percent as an integer to split study data into (default 30)
+  -t <train_percent>        Training percent (default: 50)
+  -v <valid_percent>        Validation percent (default: 0; omit or set 0 for 2-way train/test split)
+  -T <test_percent>         Testing percent (default: 50)
   -s <rand_seed>            Randomization seed (default 42)
   -N <skip_split_generation>             Include flag to skip generating plink separated files (default: set to generate split plink files). 
   -h                        show this help and exit
