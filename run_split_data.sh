@@ -3,7 +3,7 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=16g
-#SBATCH -p agsmall
+#SBATCH -p medium
 #SBATCH -o split_data_%j.out
 #SBATCH --job-name split_data
 
