@@ -74,9 +74,12 @@ def main():
             print(f"Running PLINK for {split_name} subset...")
             subprocess.run(cmd, check=True)
 
-        run_plink(train_file, "train")
-        run_plink(val_file, "val")
-        run_plink(test_file, "test")
+        if n_train > 0:
+            run_plink(train_file, "train")
+        if n_val > 0:
+            run_plink(val_file, "val")
+        if n_test > 0:
+            run_plink(test_file, "test")
 
         print("\nPLINK subsets generated successfully.")
 

@@ -99,6 +99,141 @@ RUN_LASSOSUM2=false
 RUN_PRSice2=true
 ```
 
+## End-to-End Example: Real Data
+
+The typical workflow starts with cleaned PLINK files and GWAS summary statistics,
+splits the genotype data into training and test sets, then runs the pipeline.
+
+### 1. Prepare the data
+
+If starting from raw PLINK data, use `genomic_preps.sh` to update phenotypes/sex,
+split by ancestry, apply QC filters, and compute allele frequencies:
+
+```bash
+# Edit paths in genomic_preps.sh for your data, then:
+bash src/genomic_preps.sh
+# Produces: abcd_EUR_filtered, abcd_EUR_final (.bed/.bim/.fam + .afreq)
+```
+
+### 2. Split into train and test inside the container
+
+Use `run_split_data.sh` to split PLINK files into random train/test subsets
+inside `prsv2_latest.sif`. No host modules or conda environments needed —
+all dependencies (PLINK, PLINK 2, Python) are provided by the container.
+
+Accepts one or two PLINK inputs. With one (`-1` only), that single dataset
+is split. With two (`-1` and `-2`), both are split independently.
+
+Single-ancestry 2-way split (one input, train/test — default, `-v 0`):
+
+```bash
+# Sample lists only (fast; generate actual PLINK files separately if needed)
+bash run_split_data.sh \
+  -1 /path/to/study_sample \
+  -r /path/to/prs_pipeline \
+  -t 70 -T 30 -N
+
+# Or generate PLINK subsets directly (may take longer):
+sbatch run_split_data.sh \
+  -1 /path/to/study_sample \
+  -r /path/to/prs_pipeline \
+  -t 70 -T 30
+```
+
+Two-ancestry split (two inputs):
+
+```bash
+bash run_split_data.sh \
+  -1 /path/to/AFR_study_sample \
+  -2 /path/to/EUR_study_sample \
+  -r /path/to/prs_pipeline \
+  -t 70 -T 30 -N
+```
+
+Sample lists are written alongside the input file(s) in
+`randomization_ids_anc1/` (and `randomization_ids_anc2/` if `-2` is given):
+
+```
+/path/to/study_sample/
+  randomization_ids_anc1/        # always created
+    train_samples.txt
+    test_samples.txt
+    validation_samples.txt        # only if -v > 0
+  randomization_ids_anc2/        # only if -2 was provided
+    train_samples.txt
+    test_samples.txt
+```
+
+When `-N` is omitted, `run_split_data.sh` also generates the actual PLINK
+subsets (`.bed`/`.bim`/`.fam`) in the same directory as the original files.
+
+After splitting, extract the actual PLINK files for training and evaluation
+(the sample lists are in `randomization_ids_anc1/`):
+
+```bash
+# Extract training set
+plink --bfile /path/to/study_sample \
+  --keep /path/to/study_sample/randomization_ids_anc1/train_samples.txt \
+  --make-bed --out /path/to/train
+
+# Extract held-out test set
+plink --bfile /path/to/study_sample \
+  --keep /path/to/study_sample/randomization_ids_anc1/test_samples.txt \
+  --make-bed --out /path/to/test
+
+# Compute allele frequencies for the training set (needed by LDpred2/lassosum2)
+plink2 --bfile /path/to/train --freq --out /path/to/train
+# Produces: /path/to/train.afreq
+```
+
+Note: for two-ancestry splits, each ancestry gets its own sample lists.
+The structure is identical under `randomization_ids_anc2/`.
+
+### 3. Create the config file
+
+Point the config at your training data and (optionally) the held-out test set:
+
+```bash
+# my_config.txt
+summary_stats_file="/path/to/cleaned_sumstats.tsv"
+bim_file_path="/path/to/train.bim"
+study_sample="/path/to/train"           # PLINK prefix (no extension)
+output_path="/path/to/results"
+path_repo="/path/to/prs_pipeline"
+afreq_file="/path/to/train.afreq"       # Required for LDpred2/lassosum2
+n_total_gwas=50000                      # GWAS sample size
+ncores=4                                # Match sandbox --cpus-per-task
+
+# Optional test evaluation
+test_sample="/path/to/test"
+# test_pca_eigenvec_file="/path/to/test_pca.eigenvec"  # omit to auto-compute
+
+# Methods to run
+RUN_CT=true
+RUN_LDPRED2=true
+RUN_LASSOSUM2=false
+RUN_PRSice2=true
+```
+
+### 4. Run the pipeline in the container
+
+```bash
+sbatch sandbox_singularity_runner.sh --C my_config.txt -c -l -P
+```
+
+Or with config-based method control (no CLI flags needed):
+
+```bash
+sbatch sandbox_singularity_runner.sh --C my_config.txt
+```
+
+If you need more CPUs (the container default is 4), override the Slurm header
+via the template wrapper:
+
+```bash
+bash templates/sbatch_singlePRS_container.sh /path/to/prs_pipeline my_config.txt
+```
+
 ## Input File Formats
 
 All input files are tab-separated (`.tsv`). Headers are **required** (auto-detected and prepended for `phenotype_info_file`; see below).
