@@ -121,50 +121,51 @@ Use `run_split_data.sh` to split PLINK files into random train/test subsets
 inside `prsv2_latest.sif`. No host modules or conda environments needed —
 all dependencies (PLINK, PLINK 2, Python) are provided by the container.
 
-The wrapper accepts the same flags as `src/run_split_plink_data.sh`, auto-detects
-bind mounts from the input paths, and forwards everything into the container.
+Accepts one or two PLINK inputs. With one (`-1` only), that single dataset
+is split. With two (`-1` and `-2`), both are split independently.
 
-2-way split (train/test — default, `-v 0`):
+Single-ancestry 2-way split (one input, train/test — default, `-v 0`):
 
 ```bash
 # Sample lists only (fast; generate actual PLINK files separately if needed)
 bash run_split_data.sh \
-  -1 /path/to/AFR_study_sample \
-  -2 /path/to/EUR_study_sample \
+  -1 /path/to/study_sample \
   -r /path/to/prs_pipeline \
   -t 70 -T 30 -N
 
 # Or generate PLINK subsets directly (may take longer):
 sbatch run_split_data.sh \
-  -1 /path/to/AFR_study_sample \
-  -2 /path/to/EUR_study_sample \
+  -1 /path/to/study_sample \
   -r /path/to/prs_pipeline \
   -t 70 -T 30
 ```
 
-Sample lists are written alongside the input files in
-`randomization_ids_anc1/` and `randomization_ids_anc2/`:
+Two-ancestry split (two inputs):
+
+```bash
+bash run_split_data.sh \
+  -1 /path/to/AFR_study_sample \
+  -2 /path/to/EUR_study_sample \
+  -r /path/to/prs_pipeline \
+  -t 70 -T 30 -N
+```
+
+Sample lists are written alongside the input file(s) in
+`randomization_ids_anc1/` (and `randomization_ids_anc2/` if `-2` is given):
 
 ```
-/path/to/AFR_study_sample/
-  randomization_ids_anc1/
+/path/to/study_sample/
+  randomization_ids_anc1/        # always created
     train_samples.txt
     test_samples.txt
-    validation_samples.txt    # only if -v > 0
+    validation_samples.txt        # only if -v > 0
+  randomization_ids_anc2/        # only if -2 was provided
+    train_samples.txt
+    test_samples.txt
 ```
 
 When `-N` is omitted, `run_split_data.sh` also generates the actual PLINK
 subsets (`.bed`/`.bim`/`.fam`) in the same directory as the original files.
-
-For single-ancestry data (one population, no anc2), you can run the Python
-script directly inside the container:
-
-```bash
-singularity exec --bind /path/to/data,/path/to/repo \
-  /path/to/prs_pipeline/prsv2_latest.sif \
-  python /path/to/prs_pipeline/src/split_plink_samples.py \
-    /path/to/study_sample --train 70 --val 0 --test 30 --seed 42 --no_plink
-```
 
 After splitting, extract the actual PLINK files for training and evaluation
 (the sample lists are in `randomization_ids_anc1/`):
@@ -184,6 +185,9 @@ plink --bfile /path/to/study_sample \
 plink2 --bfile /path/to/train --freq --out /path/to/train
 # Produces: /path/to/train.afreq
 ```
+
+Note: for two-ancestry splits, each ancestry gets its own sample lists.
+The structure is identical under `randomization_ids_anc2/`.
 
 ### 3. Create the config file
 

@@ -12,8 +12,8 @@
 
 ### --- CONFIGURABLE DEFAULTS -------------------------------------------------
 # Defaults (can be overridden via CLI)
-plink_file_anc1="/projects/standard/gdc/public/prs_methods/data/test/sim_1/AFR_simulation_study_sample"                     # target ancestry
-plink_file_anc2="/projects/standard/gdc/public/prs_methods/data/test/sim_1/EUR_simulation_study_sample"                     # training ancestry
+plink_file_anc1=""
+plink_file_anc2=""
 
 train_percent=50
 valid_percent=0
@@ -33,26 +33,33 @@ Usage: $0 [options]
 Split PLINK files into train/val/test subsets. When validation percent is 0
 (default), produces a 2-way train/test split instead.
 
+Accepts one (-1) or two (-1 and -2) PLINK prefixes. With one prefix, only
+that dataset is split. With two, both are split independently (e.g. separate
+ancestry batches).
+
 Options:
-  -1 <plink_file_anc1>      Full path to target ancestry plink files (default: ${plink_file_anc1})
-  -2 <plink_file_anc2>      Full path to training ancestry plink files  (default: ${plink_file_anc2})
-  -r <repo_path>            Path to prs_pipeline repo (default: ${path_to_repo})
-  -t <train_percent>        Percent of data for training (default: 50)
-  -v <validation_percent>   Percent of data for validation (default: 0; set >0 for 3-way split)
-  -T <test_percent>         Percent of data for testing (default: 50)
-  -S <seed>                 Randomization seed (default: 42)
-  -N                        Skip generating PLINK separated files (sample lists only)
-  -h                        Show this help and exit
+  -1 <path>    PLINK prefix (target ancestry). Required.
+  -2 <path>    Second PLINK prefix (training ancestry). Optional.
+  -r <path>    Path to prs_pipeline repo (default: ${path_to_repo})
+  -t <pct>     Training percent (default: 50)
+  -v <pct>     Validation percent (default: 0; set >0 for 3-way split)
+  -T <pct>     Test percent (default: 50)
+  -S <int>     Random seed (default: 42)
+  -N           Sample lists only (skip PLINK file generation)
+  -h           Show this help and exit
 
 Examples:
-  2-way split (train/test, default):
-    bash $0 -1 /path/to/AFR_study_sample -2 /path/to/EUR_study_sample
+  Single ancestry (1 input):
+    bash $0 -1 /path/to/study_sample
 
-  3-way split (train/val/test):
-    bash $0 -1 /path/to/AFR_study_sample -2 /path/to/EUR_study_sample -t 70 -v 15 -T 15
+  Two ancestries (2 inputs):
+    bash $0 -1 /path/to/AFR -2 /path/to/EUR
 
-  Sample lists only (no PLINK file generation):
-    bash $0 -1 /path/to/AFR_study_sample -2 /path/to/EUR_study_sample -N
+  3-way split:
+    bash $0 -1 /path/to/study_sample -t 70 -v 15 -T 15
+
+  Sample lists only:
+    bash $0 -1 /path/to/study_sample -N
 EOF
   exit 1
 }
@@ -80,6 +87,10 @@ while getopts ":1:2:r:t:T:v:S:Nh" opt; do
   esac
 done
 
+if [[ -z "$plink_file_anc1" ]]; then
+    echo "ERROR: -1 is required"
+    usage
+fi
 
 # Load environments / modules
 # Inside the Singularity container, plink/plink2/python are already in PATH
@@ -90,48 +101,39 @@ fi
 
 base_location=$(dirname "$plink_file_anc1")
 mkdir -p "${base_location}/randomization_ids_anc1"
-mkdir -p "${base_location}/randomization_ids_anc2"
+if [[ -n "$plink_file_anc2" ]]; then
+    mkdir -p "${base_location}/randomization_ids_anc2"
+fi
 
 # Split phenotype / plink files
 if [[ -z "${SINGULARITY_CONTAINER:-}" ]]; then
     source /projects/standard/gdc/public/envs/load_miniconda3.sh
 fi
-log "Splitting plink data for "$plink_file_anc1""
-if [ "${no_plink}" -eq 1 ]; then
-  python "${path_to_repo}/src/split_plink_samples.py" "${plink_file_anc1}" \
-    --train "${train_percent}" \
-    --val "${valid_percent}" \
-    --test "${test_percent}" \
-    --seed ${rand_seed} \
-    --no_plink
+log "Splitting plink data for $plink_file_anc1"
+run_split() {
+    local prefix="$1"
+    local out_dir="$2"
+    if [ "${no_plink}" -eq 1 ]; then
+        python "${path_to_repo}/src/split_plink_samples.py" "${prefix}" \
+            --train "${train_percent}" \
+            --val "${valid_percent}" \
+            --test "${test_percent}" \
+            --seed ${rand_seed} \
+            --no_plink
+    else
+        python "${path_to_repo}/src/split_plink_samples.py" "${prefix}" \
+            --train "${train_percent}" \
+            --val "${valid_percent}" \
+            --test "${test_percent}" \
+            --seed ${rand_seed}
+    fi
+    mv "${base_location}"/*samples.txt "${base_location}/${out_dir}"
+}
 
-  mv "${base_location}"/*samples.txt "${base_location}/randomization_ids_anc1"
-  log "Splitting plink data for "$plink_file_anc2""
-
-  python "${path_to_repo}/src/split_plink_samples.py" "${plink_file_anc2}" \
-    --train "${train_percent}" \
-    --val "${valid_percent}" \
-    --test "${test_percent}" \
-    --seed ${rand_seed} \
-    --no_plink
-  mv "${base_location}"/*samples.txt "${base_location}/randomization_ids_anc2"
-else
-
-  python "${path_to_repo}/src/split_plink_samples.py" "${plink_file_anc1}" \
-    --train "${train_percent}" \
-    --val "${valid_percent}" \
-    --test "${test_percent}" \
-    --seed ${rand_seed}
-  mv "${base_location}"/*samples.txt "${base_location}/randomization_ids_anc1"
-
-  log "Splitting plink data for "$plink_file_anc2""
-
-  python "${path_to_repo}/src/split_plink_samples.py" "${plink_file_anc2}" \
-    --train "${train_percent}" \
-    --val "${valid_percent}" \
-    --test "${test_percent}" \
-    --seed ${rand_seed}
-  mv "${base_location}"/*samples.txt "${base_location}/randomization_ids_anc2"
+run_split "$plink_file_anc1" randomization_ids_anc1
+if [[ -n "$plink_file_anc2" ]]; then
+    log "Splitting plink data for $plink_file_anc2"
+    run_split "$plink_file_anc2" randomization_ids_anc2
 fi
 
 if [[ -z "${SINGULARITY_CONTAINER:-}" ]]; then
